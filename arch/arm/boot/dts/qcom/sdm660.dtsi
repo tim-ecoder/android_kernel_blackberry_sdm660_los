@@ -309,24 +309,16 @@
 					compatible = "android,system";
 					dev = "/dev/block/platform/soc/c0c4000.sdhci/by-name/system";
 					type = "ext4";
-/* start:BBSECURE_PATHTRUST : Add the trusted flag */
-					mnt_flags = "ro,barrier=1,discard,trusted";
-/* end:BBSECURE_PATHTRUST */
-/* start:BBRY_ANDROID : Add system signature */
-					fsmgr_flags = "wait,verify,signature=/system_signature";
-/* end:BBRY_ANDROID */
+					mnt_flags = "ro,barrier=1,discard";
+					fsmgr_flags = "wait";
 					status = "ok";
 				};
 				vendor {
 					compatible = "android,vendor";
 					dev = "/dev/block/platform/soc/c0c4000.sdhci/by-name/vendor";
 					type = "ext4";
-/* start:BBSECURE_PATHTRUST : Add the trusted flag */
-					mnt_flags = "ro,barrier=1,discard,trusted";
-/* end:BBSECURE_PATHTRUST */
-/* start:BBRY_ANDROID : Add vendor signature */
-					fsmgr_flags = "wait,verify,signature=/vendor_signature";
-/* end:BBRY_ANDROID */
+					mnt_flags = "ro,barrier=1,discard";
+					fsmgr_flags = "wait";
 					status = "ok";
 				};
 				/* [FEATURE]-MODIFY-END by TCTNB.linjian.xiang */
