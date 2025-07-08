@@ -346,7 +346,8 @@ include scripts/Kbuild.include
 CPP		= $(CC) -E
 ifneq ($(LLVM),)
 CC		= clang
-LD		= ld.lld
+#LD		= ld.lld
+override LD		:= aarch64-linux-gnu-ld
 AR		= llvm-ar
 NM		= llvm-nm
 OBJCOPY	= llvm-objcopy
@@ -1003,6 +1004,8 @@ libs-y1		:= $(patsubst %/, %/lib.a, $(libs-y))
 libs-y2		:= $(patsubst %/, %/built-in.o, $(libs-y))
 libs-y		:= $(libs-y1) $(libs-y2)
 virt-y		:= $(patsubst %/, %/built-in.o, $(virt-y))
+
+override LD		:= aarch64-linux-gnu-ld
 
 # Externally visible symbols (used by link-vmlinux.sh)
 export KBUILD_VMLINUX_INIT := $(head-y) $(init-y)
