@@ -77,6 +77,8 @@ extern int i2c_check_status_create(char *name,int value);
 #define BOARD_PIO05 5
 #define BAORD_OTHERS 0Xff
 
+#define usleep(us) usleep_range(us, (us) + 100)
+
 /*******************************************************************************
 * Static function prototypes
 *******************************************************************************/
