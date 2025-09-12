@@ -61,7 +61,7 @@
 */
 
 #define ENABLE_SYS_REFLASH true
-#define FORCE_UPDATE false
+#define FORCE_UPDATE true
 #define DO_LOCKDOWN false
 
 #define MAX_IMAGE_NAME_LEN 256
@@ -824,7 +824,7 @@ static struct device_attribute attrs[] = {
 			fwu_sysfs_read_lockdown_code_show,
 			fwu_sysfs_write_lockdown_code_store),
 #endif
-	__ATTR(config_id, (S_IRUGO),
+	__ATTR(config_id, (S_IRUSR | S_IRGRP),
 			fwu_sysfs_config_id_show,
 			synaptics_rmi4_store_error)
 };

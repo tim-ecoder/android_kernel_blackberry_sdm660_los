@@ -167,6 +167,7 @@ int swipe_start_y_location[10];
 int swipe_start_x_location[10];
 int last_y_location[10];
 int average_y_movement[10];
+extern void btn_mask_on_notif(bool btn_mask_on) __attribute__((weak));
 #endif
 
 #define usleep(us) usleep_range(us, (us) + 100)
@@ -492,7 +493,9 @@ static void proxi_complete(int object_detected, void *data);
 #endif
 
 /* MODIFIED-BEGIN by Haojun Chen, 2016-11-09,BUG-3379691*/
+#ifdef CONFIG_TCT_SDM660_COMMON
 extern int i2c_check_status_create(char *name,int value);
+#endif
 /* MODIFIED-END by Haojun Chen,BUG-3379691*/
 
 static void synaptics_record_events(struct synaptics_rmi4_data  *rmi4_data,
@@ -3524,62 +3527,6 @@ static void proxi_complete(int object_detected, void *data)
 }
 #endif
 
-#ifdef CONFIG_CKB_MASK_KEY
-static struct workqueue_struct *btn_wq = NULL;
-static struct mutex btn_lock;
-static struct delayed_work btn_work;
-bool btn_mask_on = false;
-static bool mask_on_cur = false;
-
-static void btn_reset_work(struct work_struct *work)
-{
-	//INFO_COMMON_FTS("reset btn_mask_on");
-	btn_mask_on = false;
-	mask_on_cur = false;
-	return;
-}
-
-static int btn_mask_function_init(void)
-{
-	//FTS_COMMON_DBG("[focal] Enter %s ",  __func__);
-
-	btn_wq = create_workqueue("Btn_Workqueue");
-	if (!btn_wq) {
-		return -1;
-	}
-	INIT_DELAYED_WORK(&btn_work, btn_reset_work);
-	mutex_init(&btn_lock);
-
-	return 0;
-}
-
-static void btn_mask_on_notif(bool btn_mask_on_change)
-{
-	//INFO_COMMON_FTS("btn_mask_on_notif %d ", btn_mask_on_change);
-
-	if (!btn_wq)
-		return;
-
-	if (btn_mask_on_change == mask_on_cur)
-		return;
-	else
-		mask_on_cur = btn_mask_on_change;
-
-	mutex_lock(&btn_lock);
-	if (btn_mask_on_change == true) {
-		btn_mask_on = true;
-		cancel_delayed_work_sync(&btn_work);
-		queue_delayed_work(btn_wq, &btn_work, msecs_to_jiffies(5000));
-		//INFO_COMMON_FTS("start btn reset work 5000ms");
-	} else {
-		cancel_delayed_work_sync(&btn_work);
-		queue_delayed_work(btn_wq, &btn_work, msecs_to_jiffies(150));
-		//INFO_COMMON_FTS(" start btn reset work 150ms");
-	}
-	mutex_unlock(&btn_lock);
-}
-#endif
-
 static void synaptics_rmi4_handle_gesture_wakeup(
 	struct synaptics_rmi4_data *rmi4_data,
 	struct synaptics_rmi4_fn *fhandler)
@@ -4210,8 +4157,6 @@ static void synaptics_rmi4_force_cal_work(struct work_struct *work)
 
 #define BBRY_SCALE_Y_POS(y_in,y_min,y_max,y_scale_min,y_scale_max)   (((y_in*(y_max-y_min))/(y_scale_max-y_scale_min))+(y_min-((y_scale_min*(y_max-y_min))/(y_scale_max-y_scale_min))))
 
-int shift_key_is_pressed = 0;
-
  /**
  * synaptics_rmi4_f12_abs_report
  *
@@ -4495,35 +4440,31 @@ static int synaptics_rmi4_f12_abs_report(
 				y = rmi4_data->sensor_max_y;
 			}
 			// end Scale Y
-			if (!rmi4_data->touch_state)
-				dev_err(rmi4_data->pdev->dev.parent, "%s: Touch DOWN\n", __func__);
 
+			if (!rmi4_data->turn_off || !IGNORE_TURN_OFF_FLAG) {
+				input_report_key(rmi4_data->input_dev,
+						BTN_TOUCH, 1);
+				input_report_key(rmi4_data->input_dev,
+						BTN_TOOL_FINGER, 1);
+			}
 			rmi4_data->touch_state = true;
 
-			if(!(shift_key_is_pressed ==1 && (x>50 && x<150 && y<525 && y>480))) {
-				if (!rmi4_data->turn_off || !IGNORE_TURN_OFF_FLAG) {
-						input_report_key(rmi4_data->input_dev,
-								BTN_TOUCH, 1);
-						input_report_key(rmi4_data->input_dev,
-								BTN_TOOL_FINGER, 1);
-				}
-
-				input_report_abs(rmi4_data->input_dev,
-						ABS_MT_POSITION_X, x);
-				input_report_abs(rmi4_data->input_dev,
-						ABS_MT_POSITION_Y, y);
+			input_report_abs(rmi4_data->input_dev,
+					ABS_MT_POSITION_X, x);
+			input_report_abs(rmi4_data->input_dev,
+					ABS_MT_POSITION_Y, y);
 #ifdef REPORT_2D_Z
-				/* report 0xf9 (MAX_Z-6) for edge and 0x00 - 0xf6 (MAX_Z-9) for the reset */
-				input_report_abs(rmi4_data->input_dev, ABS_MT_PRESSURE,
-					(rmi4_data->touch_edge[finger] == 0) ? min(z, MAX_Z-9) : (MAX_Z-6));
+			/* report 0xf9 (MAX_Z-6) for edge and 0x00 - 0xf6 (MAX_Z-9) for the reset */
+			input_report_abs(rmi4_data->input_dev, ABS_MT_PRESSURE,
+				(rmi4_data->touch_edge[finger] == 0) ? min(z, MAX_Z-9) : (MAX_Z-6));
 #endif
 #ifdef REPORT_2D_W
-				input_report_abs(rmi4_data->input_dev,
-						ABS_MT_TOUCH_MAJOR, max(wx, wy));
-				input_report_abs(rmi4_data->input_dev,
-						ABS_MT_TOUCH_MINOR, min(wx, wy));
+			input_report_abs(rmi4_data->input_dev,
+					ABS_MT_TOUCH_MAJOR, max(wx, wy));
+			input_report_abs(rmi4_data->input_dev,
+					ABS_MT_TOUCH_MINOR, min(wx, wy));
 #endif
-			}
+
 #ifdef CONFIG_CKB_MASK_KEY
 			// Check for CKB swipes to mask navigation events
 			y_movement = last_y_location[finger] - y;
@@ -4557,12 +4498,19 @@ static int synaptics_rmi4_f12_abs_report(
 
 			if ((y_swipe_length > MASK_Y_SWIPE_LENGTH) /*|| (y >= 45 && y < 60)*/) {
 				mask_on |= 1 << finger;
-				btn_mask_on_notif(true);
+				if (btn_mask_on_notif)
+					btn_mask_on_notif(true);
+				else
+					dev_err(rmi4_data->pdev->dev.parent,"%s: btn_mask_on_notif is not found\n",__func__);
 			} else {
 				if (y_swipe_length<(MASK_Y_SWIPE_LENGTH-25)){
 					mask_on &= ~(1 << finger);
-					if (mask_on == 0)
-						btn_mask_on_notif(false);
+					if (mask_on == 0){
+						if (btn_mask_on_notif)
+							btn_mask_on_notif(false);
+						else
+							dev_err(rmi4_data->pdev->dev.parent,"%s: btn_mask_on_notif is not found\n",__func__);
+					}
 				}
 			}
 #endif
@@ -4642,8 +4590,12 @@ static int synaptics_rmi4_f12_abs_report(
 			//if ((mask_on != 0) && ((mask_on & ~(1 << finger))==0))
 				//msleep(150); //delay up event when mask clears in case Navigation key occurs
 			mask_on &= ~(1 << finger);
-			if (mask_on == 0)
-				btn_mask_on_notif(false);
+			if (mask_on == 0){
+				if (btn_mask_on_notif)
+					btn_mask_on_notif(false);
+				else
+					dev_err(rmi4_data->pdev->dev.parent,"%s: btn_mask_on_notif is not found\n",__func__);
+			}
 			swipe_start_y_location[finger] = 0;
 			swipe_start_x_location[finger] = 0;
 			last_y_location[finger] = 0;
@@ -4685,7 +4637,7 @@ static int synaptics_rmi4_f12_abs_report(
 
 		rmi4_data->touch_state = false;
 
-		dev_err(rmi4_data->pdev->dev.parent,
+		dev_dbg(rmi4_data->pdev->dev.parent,
 				"%s: Touch UP\n",
 				__func__);
 #ifndef TYPE_B_PROTOCOL
@@ -5310,10 +5262,12 @@ static int synaptics_rmi4_f11_init(struct synaptics_rmi4_data *rmi4_data,
 			(control_6_9.sensor_max_x_pos_11_8 << 8);
 	rmi4_data->sensor_max_y = control_6_9.sensor_max_y_pos_7_0 |
 			(control_6_9.sensor_max_y_pos_11_8 << 8);
+#if defined(CONFIG_TCT_SDM660_COMMON) || defined(BBRY_MINISW)
 	if (rmi4_data->hw_if->board_data->panel_x != 0)
 		rmi4_data->sensor_max_x = rmi4_data->hw_if->board_data->panel_x;
 	if (rmi4_data->hw_if->board_data->panel_y != 0)
 		rmi4_data->sensor_max_y = rmi4_data->hw_if->board_data->panel_y;
+#endif
 	dev_dbg(rmi4_data->pdev->dev.parent,
 			"%s: Function %02x max x = %d max y = %d\n",
 			__func__, fhandler->fn_number,
@@ -5733,11 +5687,12 @@ static int synaptics_rmi4_f12_init(struct synaptics_rmi4_data *rmi4_data,
 			((unsigned short)ctrl_8.max_y_coord_lsb << 0) |
 			((unsigned short)ctrl_8.max_y_coord_msb << 8);
 
+#if defined(CONFIG_TCT_SDM660_COMMON) || defined(BBRY_MINISW)
 	if (rmi4_data->hw_if->board_data->panel_x != 0)
 		rmi4_data->sensor_max_x = rmi4_data->hw_if->board_data->panel_x;
 	if (rmi4_data->hw_if->board_data->panel_y != 0)
 		rmi4_data->sensor_max_y = rmi4_data->hw_if->board_data->panel_y;
-
+#endif
 	dev_dbg(rmi4_data->pdev->dev.parent,
 			"%s: Function %02x max x = %d max y = %d\n",
 			__func__, fhandler->fn_number,
@@ -6596,7 +6551,10 @@ static int synaptics_rmi4_free_fingers(struct synaptics_rmi4_data *rmi4_data)
 
 #ifdef CONFIG_CKB_MASK_KEY
 	mask_on = 0;
-	btn_mask_on_notif(false);
+	if (btn_mask_on_notif)
+		btn_mask_on_notif(false);
+	else
+		dev_err(rmi4_data->pdev->dev.parent,"%s: btn_mask_on_notif is not found\n",__func__);
 	memset(swipe_start_y_location, 0, sizeof(swipe_start_y_location));
 	memset(swipe_start_x_location, 0, sizeof(swipe_start_x_location));
 	memset(last_y_location, 0, sizeof(last_y_location));
@@ -7484,11 +7442,6 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_RMI_DEV
 	synaptics_rmidev_module_init(rmi4_data);
 #endif
-
-#ifdef CONFIG_CKB_MASK_KEY
-	btn_mask_function_init();
-#endif
-
 #ifdef CONFIG_BBRY_DEBUG
 	if (!rmi4_data->hw_if->board_data->ddic_power_control)
 		synaptics_rmi4_slide_module_init(rmi4_data);
@@ -7499,7 +7452,9 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 #endif
 	dev_info(&pdev->dev, "%s:EXIT\n", __func__);
 /* MODIFIED-BEGIN by Haojun Chen, 2016-11-09,BUG-3379691*/
+#ifdef CONFIG_TCT_SDM660_COMMON
 	i2c_check_status_create("touch_keypad",1);
+#endif
 /* MODIFIED-END by Haojun Chen,BUG-3379691*/
 	return retval;
 
@@ -7589,7 +7544,9 @@ err_gpio_main_power:
 err_regulator:
 	//kfree(rmi4_data);
 /* MODIFIED-BEGIN by Haojun Chen, 2016-11-09,BUG-3379691*/
+#ifdef CONFIG_TCT_SDM660_COMMON
 	i2c_check_status_create("touch_keypad",0);
+#endif
 /* MODIFIED-END by Haojun Chen,BUG-3379691*/
 	return retval;
 

@@ -2890,7 +2890,7 @@ ssize_t synaptics_rmi4_f54_do_full_raw_rt78(struct synaptics_rmi4_data *rmi4_dat
 					__func__);
 			return retval;
 		}
-		if((temp_value & 0x01)== 0x00)
+		if (temp_value == 0x00)
 			break;
 
 		msleep(100);
@@ -2939,7 +2939,7 @@ ssize_t synaptics_rmi4_f54_do_full_raw_rt78(struct synaptics_rmi4_data *rmi4_dat
 			return retval;
 		}
 		
-		if((temp_value & 0x01)== 0x00)
+		if (temp_value == 0x00)
 			break;
 		
 		msleep(20);
@@ -3488,7 +3488,7 @@ ssize_t synaptics_rmi4_f54_do_open_rt78(struct synaptics_rmi4_data *rmi4_data,
 					__func__);
 			return retval;
 		}
-		if((temp_value & 0x01)== 0x00)
+		if (temp_value == 0x00)
 			break;
 
 		msleep(100);
@@ -3537,7 +3537,7 @@ ssize_t synaptics_rmi4_f54_do_open_rt78(struct synaptics_rmi4_data *rmi4_data,
 			return retval;
 		}
 		
-		if((temp_value & 0x01)== 0x00)
+		if (temp_value == 0x00)
 			break;
 		
 		msleep(20);
@@ -3646,7 +3646,7 @@ ssize_t synaptics_rmi4_f54_do_open_rt78(struct synaptics_rmi4_data *rmi4_data,
 					__func__);
 			return retval;
 		}
-		if((temp_value & 0x01)== 0x00)
+		if (temp_value == 0x00)
 			break;
 
 		msleep(100);
@@ -5001,10 +5001,12 @@ pdt_done:
 		offset += 1;
 	}
 
+#if defined(CONFIG_TCT_SDM660_COMMON) || defined(BBRY_MINISW)
 	if (rmi4_data->hw_if->board_data->num_of_rx_electrodes != 0)
 		f54->query.num_of_rx_electrodes = rmi4_data->hw_if->board_data->num_of_rx_electrodes;
 	if (rmi4_data->hw_if->board_data->num_of_tx_electrodes != 0)
 		f54->query.num_of_tx_electrodes = rmi4_data->hw_if->board_data->num_of_tx_electrodes;
+#endif
 
 	f54->rx_assigned = f54->query.num_of_rx_electrodes;
 	f54->tx_assigned = f54->query.num_of_tx_electrodes;

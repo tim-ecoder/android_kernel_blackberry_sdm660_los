@@ -135,7 +135,9 @@ static int synaptics_rmi4_fb_notifier_cb(struct notifier_block *self,
 		unsigned long event, void *data);
 #endif
 
+#ifdef CONFIG_TCT_SDM660_COMMON
 extern int i2c_check_status_create(char *name,int value);
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #ifndef CONFIG_FB
@@ -1760,81 +1762,6 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 	return touch_count;
 }
 
-#ifdef CONFIG_CKB_MASK_KEY
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_BBRY
-extern bool btn_mask_on;
-static bool btn_mask_hold = false;
-#endif
-static char nav_key_is_pressed;
-static unsigned int nav_key_code;
-extern char nav_key_is_reporting;
-extern char nav_key_need_report;
-
-extern int get_stmpe_keypad_status(void);
-
-static void synaptics_nav_key_report_work(struct work_struct *work)
-{
-	struct delayed_work *delayed_work =
-			container_of(work, struct delayed_work, work);
-	struct synaptics_rmi4_data *rmi4_data =
-			container_of(delayed_work, struct synaptics_rmi4_data,
-			nav_key_report_work);
-
-	if (nav_key_need_report) {
-		printk("%s report nav key code=%d \n", __func__, nav_key_code);
-		input_report_key(rmi4_data->input_dev, nav_key_code, 1);
-		input_sync(rmi4_data->input_dev);
-	} else {
-		printk("%s stmpe_keypad pressed, ignore nav key\n", __func__);
-	}
-	nav_key_is_reporting = 0;
-}
-
-static void synaptics_report_key(struct synaptics_rmi4_data *rmi4_data, unsigned int code, int value)
-{
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_BBRY
-	if (btn_mask_on || btn_mask_hold) {
-		dev_err(rmi4_data->pdev->dev.parent,
-			"%s: CKB swipe occured, ignore Navigation button\n",
-			__func__);
-		if (value == 1)
-			btn_mask_hold = true;
-		else
-			btn_mask_hold = false;
-		return;
-	}
-#endif
-	if (value == 1) {
-		if (nav_key_is_pressed == 1)
-			return;
-		nav_key_is_pressed = 1;
-		if (get_stmpe_keypad_status() == 1)
-			return;
-
-		nav_key_code = code;
-		queue_delayed_work(rmi4_data->btn_workqueue, &rmi4_data->nav_key_report_work, msecs_to_jiffies(150));
-		nav_key_is_reporting = 1;
-		nav_key_need_report = 1;
-	} else {
-		nav_key_is_pressed = 0;
-		dev_err(rmi4_data->pdev->dev.parent,"%s: nav_key_is_reporting=%d,nav_key_need_report=%d code=%d\n",
-			__func__, nav_key_is_reporting, nav_key_need_report, code);
-		if (nav_key_is_reporting == 1 && nav_key_need_report == 0) {
-			cancel_delayed_work_sync(&rmi4_data->nav_key_report_work);
-		} else if (nav_key_is_reporting == 1 && nav_key_need_report == 1) {
-			cancel_delayed_work_sync(&rmi4_data->nav_key_report_work);
-			input_report_key(rmi4_data->input_dev, code, 1);
-			input_sync(rmi4_data->input_dev);
-			msleep(20);
-			input_report_key(rmi4_data->input_dev, code, 0);
-			input_sync(rmi4_data->input_dev);
-		} else if (nav_key_is_reporting == 0) {
-			input_report_key(rmi4_data->input_dev, code, 0);
-			input_sync(rmi4_data->input_dev);
-		}
-	}
-}
-#endif
 static void synaptics_rmi4_f1a_report(struct synaptics_rmi4_data *rmi4_data,
 		struct synaptics_rmi4_fn *fhandler)
 {
@@ -1888,11 +1815,11 @@ static void synaptics_rmi4_f1a_report(struct synaptics_rmi4_data *rmi4_data,
 		else
 			current_status[button] = status;
 
-		dev_err(rmi4_data->pdev->dev.parent,
-				"%s: Button %d (code %d) ->%d fingers_on_2d=%d\n",
+		dev_dbg(rmi4_data->pdev->dev.parent,
+				"%s: Button %d (code %d) ->%d\n",
 				__func__, button,
 				f1a->button_map[button],
-				status, rmi4_data->fingers_on_2d);
+				status);
 #ifdef NO_0D_WHILE_2D
 		if (rmi4_data->fingers_on_2d == false) {
 			if (status == 1) {
@@ -1906,29 +1833,16 @@ static void synaptics_rmi4_f1a_report(struct synaptics_rmi4_data *rmi4_data,
 				}
 			}
 			touch_count++;
-#ifdef CONFIG_CKB_MASK_KEY
-			synaptics_report_key(rmi4_data,
-					f1a->button_map[button],
-					status);
-#else
 			input_report_key(rmi4_data->input_dev,
 					f1a->button_map[button],
 					status);
-#endif
 		} else {
 			if (before_2d_status[button] == 1) {
 				before_2d_status[button] = 0;
 				touch_count++;
-#ifdef CONFIG_CKB_MASK_KEY
-				synaptics_report_key(rmi4_data,
-						f1a->button_map[button],
-						status);
-#else
 				input_report_key(rmi4_data->input_dev,
 						f1a->button_map[button],
 						status);
-#endif
-
 			} else {
 				if (status == 1)
 					while_2d_status[button] = 1;
@@ -2304,7 +2218,7 @@ static int synaptics_rmi4_f11_init(struct synaptics_rmi4_data *rmi4_data,
 			(control_6_9.sensor_max_x_pos_11_8 << 8);
 	rmi4_data->sensor_max_y = control_6_9.sensor_max_y_pos_7_0 |
 			(control_6_9.sensor_max_y_pos_11_8 << 8);
-	dev_err(rmi4_data->pdev->dev.parent,
+	dev_dbg(rmi4_data->pdev->dev.parent,
 			"%s: Function %02x max x = %d max y = %d\n",
 			__func__, fhandler->fn_number,
 			rmi4_data->sensor_max_x,
@@ -2964,7 +2878,7 @@ static int synaptics_rmi4_f12_init(struct synaptics_rmi4_data *rmi4_data,
 		rmi4_data->max_touch_width = MAX_F12_TOUCH_WIDTH;
 	}
 
-	dev_err(rmi4_data->pdev->dev.parent,
+	dev_dbg(rmi4_data->pdev->dev.parent,
 			"%s: Function %02x max x = %d max y = %d\n",
 			__func__, fhandler->fn_number,
 			rmi4_data->sensor_max_x,
@@ -3668,9 +3582,6 @@ static void synaptics_rmi4_set_params(struct synaptics_rmi4_data *rmi4_data)
 
 	rmi = &(rmi4_data->rmi4_mod_info);
 
-	dev_err(rmi4_data->pdev->dev.parent,"%s sensor_max_x=%d,sensor_max_y=%d,max_touch_width=%d,num_of_fingers=%d \n", __func__,
-		rmi4_data->sensor_max_x,rmi4_data->sensor_max_y,rmi4_data->max_touch_width,rmi4_data->num_of_fingers);
-
 	input_set_abs_params(rmi4_data->input_dev,
 			ABS_MT_POSITION_X, 0,
 			rmi4_data->sensor_max_x, 0, 0);
@@ -4184,6 +4095,8 @@ static int synaptics_rmi4_do_rebuild(struct synaptics_rmi4_data *rmi4_data)
 
 	settings = &(rmi4_data->input_settings);
 
+	return 0;
+
 	if (settings->num_of_fingers != rmi4_data->num_of_fingers)
 		return 1;
 
@@ -4236,8 +4149,6 @@ static void synaptics_rmi4_rebuild_work(struct work_struct *work)
 			if (exp_fhandler->exp_fn->remove != NULL)
 				exp_fhandler->exp_fn->remove(rmi4_data);
 	}
-	sysfs_delete_link(rmi4_data->input_dev->dev.kobj.parent->parent->parent->parent->parent->parent,
-		&rmi4_data->input_dev->dev.kobj, "synaptics_dsx");
 
 	for (attr_count = 0; attr_count < ARRAY_SIZE(attrs); attr_count++) {
 		sysfs_remove_file(&rmi4_data->input_dev->dev.kobj,
@@ -4271,12 +4182,6 @@ static void synaptics_rmi4_rebuild_work(struct work_struct *work)
 			goto exit;
 		}
 	}
-
-	retval = sysfs_create_link(
-		rmi4_data->input_dev->dev.kobj.parent->parent->parent->parent->parent->parent,
-		&rmi4_data->input_dev->dev.kobj, "synaptics_dsx");
-	if (retval < 0)
-		dev_err(rmi4_data->pdev->dev.parent, "%s: Failed to create link to the synaptics TP\n", __func__);
 
 	if (!list_empty(&exp_data.list)) {
 		list_for_each_entry(exp_fhandler, &exp_data.list, link)
@@ -4672,7 +4577,7 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 		rmi4_data->input_dev->dev.kobj.parent->parent->parent->parent->parent->parent,
 		&rmi4_data->input_dev->dev.kobj, "synaptics_dsx");
 	if (retval < 0)
-		dev_err(&pdev->dev, "%s: Failed to create link to the synaptics TP\n", __func__);
+		dev_err(&pdev->dev, "%s: Failed to create link to the touch_keypad\n", __func__);
 
 	rmi4_data->irq = gpio_to_irq(bdata->irq_gpio);
 
@@ -4732,10 +4637,7 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 	queue_delayed_work(exp_data.workqueue,
 			&exp_data.work,
 			0);
-#ifdef CONFIG_CKB_MASK_KEY
-	rmi4_data->btn_workqueue = create_singlethread_workqueue("synaptics_btn_workqueue");
-	INIT_DELAYED_WORK(&rmi4_data->nav_key_report_work, synaptics_nav_key_report_work);
-#endif
+
 #ifdef FB_READY_RESET
 	rmi4_data->reset_workqueue =
 			create_singlethread_workqueue("dsx_reset_workqueue");
@@ -4745,7 +4647,9 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 
 	g_rmi4_dev = &pdev->dev;
 
+#ifdef CONFIG_TCT_SDM660_COMMON
 	i2c_check_status_create("touch_panel",1);
+#endif
 
 	return retval;
 
@@ -4800,7 +4704,9 @@ err_enable_reg:
 err_get_reg:
 	kfree(rmi4_data);
 
+#ifdef CONFIG_TCT_SDM660_COMMON
 	i2c_check_status_create("touch_panel",0);
+#endif
 
 	return retval;
 }
@@ -4816,12 +4722,6 @@ static int synaptics_rmi4_remove(struct platform_device *pdev)
 	cancel_work_sync(&rmi4_data->reset_work);
 	flush_workqueue(rmi4_data->reset_workqueue);
 	destroy_workqueue(rmi4_data->reset_workqueue);
-#endif
-
-#ifdef CONFIG_CKB_MASK_KEY
-	cancel_delayed_work_sync(&rmi4_data->nav_key_report_work);
-	flush_workqueue(rmi4_data->btn_workqueue);
-	destroy_workqueue(rmi4_data->btn_workqueue);
 #endif
 
 	cancel_delayed_work_sync(&exp_data.work);
@@ -4985,14 +4885,15 @@ static int synaptics_rmi4_fb_notifier_cb(struct notifier_block *self,
 					}
 				}
 				rmi4_data->suspend = false; // MODIFIED by Haojun Chen, 2017-08-10,BUG-4880343
+				rmi4_data->state = TP_STATE_IGNORE_TOUCH;
 			}else if (rmi4_data->state == TP_STATE_GESTURE) {
 				printk("%s wakeup gesture closed \n", __func__);
 				gpio_set_value(bdata->reset_gpio, 0);
 				usleep(10000);
 				gpio_set_value(bdata->reset_gpio, 1);
 				usleep(10000);
+				rmi4_data->state = TP_STATE_IGNORE_TOUCH;
 			}
-			rmi4_data->state = TP_STATE_IGNORE_TOUCH;
 		} else if (event == FB_EVENT_BLANK && *transition == FB_BLANK_NORMAL) {
 			if (rmi4_data->enable_wakeup_gesture)
 				synaptics_rmi4_wakeup_gesture(rmi4_data, true);

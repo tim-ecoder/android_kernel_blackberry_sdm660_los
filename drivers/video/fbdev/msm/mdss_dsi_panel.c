@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, 2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -234,7 +234,7 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	memset(&cmdreq, 0, sizeof(cmdreq));
 	cmdreq.cmds = &backlight_cmd;
 	cmdreq.cmds_cnt = 1;
-	cmdreq.flags = CMD_REQ_COMMIT | CMD_CLK_CTRL | CMD_REQ_DCS;
+	cmdreq.flags = CMD_REQ_COMMIT | CMD_CLK_CTRL;
 	cmdreq.rlen = 0;
 	cmdreq.cb = NULL;
 
@@ -259,11 +259,13 @@ static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 			goto disp_en_gpio_err;
 		}
 	}
-	rc = gpio_request(ctrl_pdata->rst_gpio, "disp_rst_n");
-	if (rc) {
-		pr_err("request reset gpio failed, rc=%d\n",
-			rc);
-		goto rst_gpio_err;
+	if (gpio_is_valid(ctrl_pdata->rst_gpio)) {
+		rc = gpio_request(ctrl_pdata->rst_gpio, "disp_rst_n");
+		if (rc) {
+			pr_err("request reset gpio failed, rc=%d\n",
+				rc);
+			goto rst_gpio_err;
+		}
 	}
 	if (gpio_is_valid(ctrl_pdata->avdd_en_gpio)) {
 		rc = gpio_request(ctrl_pdata->avdd_en_gpio,
@@ -289,7 +291,8 @@ lcd_mode_sel_gpio_err:
 	if (gpio_is_valid(ctrl_pdata->avdd_en_gpio))
 		gpio_free(ctrl_pdata->avdd_en_gpio);
 avdd_en_gpio_err:
-	gpio_free(ctrl_pdata->rst_gpio);
+	if (gpio_is_valid(ctrl_pdata->rst_gpio))
+		gpio_free(ctrl_pdata->rst_gpio);
 rst_gpio_err:
 	if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 		gpio_free(ctrl_pdata->disp_en_gpio);
@@ -396,7 +399,7 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 	}
 
 	if (!gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
-		pr_debug("%s:%d, reset line not configured\n",
+		pr_debug("%s:%d, disp_en_gpio not configured\n",
 			   __func__, __LINE__);
 	}
 
@@ -425,23 +428,24 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 				}
 			}
 
-			if (pdata->panel_info.rst_seq_len) {
-				rc = gpio_direction_output(ctrl_pdata->rst_gpio,
-					pdata->panel_info.rst_seq[0]);
-				if (rc) {
-					pr_err("%s: unable to set dir for rst gpio\n",
-						__func__);
-					goto exit;
+			if (gpio_is_valid(ctrl_pdata->rst_gpio)) {
+				if (pdata->panel_info.rst_seq_len) {
+					rc = gpio_direction_output(ctrl_pdata->rst_gpio,
+						pdata->panel_info.rst_seq[0]);
+					if (rc) {
+						pr_err("%s: unable to set dir for rst gpio\n",
+							__func__);
+						goto exit;
+					}
+				}
+
+				for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
+					gpio_set_value((ctrl_pdata->rst_gpio),
+						pdata->panel_info.rst_seq[i]);
+					if (pdata->panel_info.rst_seq[++i])
+						usleep_range(pinfo->rst_seq[i] * 1000, pinfo->rst_seq[i] * 1000);
 				}
 			}
-
-			for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
-				gpio_set_value((ctrl_pdata->rst_gpio),
-					pdata->panel_info.rst_seq[i]);
-				if (pdata->panel_info.rst_seq[++i])
-					usleep_range(pinfo->rst_seq[i] * 1000, pinfo->rst_seq[i] * 1000);
-			}
-
 			if (gpio_is_valid(ctrl_pdata->avdd_en_gpio)) {
 				if (ctrl_pdata->avdd_en_gpio_invert) {
 					rc = gpio_direction_output(
@@ -496,8 +500,10 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
 			gpio_free(ctrl_pdata->disp_en_gpio);
 		}
-		gpio_set_value((ctrl_pdata->rst_gpio), 0);
-		gpio_free(ctrl_pdata->rst_gpio);
+		if (gpio_is_valid(ctrl_pdata->rst_gpio)) {
+			gpio_set_value((ctrl_pdata->rst_gpio), 0);
+			gpio_free(ctrl_pdata->rst_gpio);
+		}
 		if (gpio_is_valid(ctrl_pdata->lcd_mode_sel_gpio)) {
 			gpio_set_value(ctrl_pdata->lcd_mode_sel_gpio, 0);
 			gpio_free(ctrl_pdata->lcd_mode_sel_gpio);
@@ -915,8 +921,6 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	}
 }
 
-bool bb_panel_is_off = false;
-
 static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
@@ -961,13 +965,14 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	/* Ensure low persistence mode is set as before */
 	mdss_dsi_panel_apply_display_setting(pdata, pinfo->persist_mode);
 
-	bb_panel_is_off = false;
-
 end:
 	pr_debug("%s:-\n", __func__);
 	return ret;
 }
 
+#ifdef CONFIG_TCT_SDM660_COMMON
+bool bb_panel_is_off = false;
+#endif
 static int mdss_dsi_post_panel_on(struct mdss_panel_data *pdata)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
@@ -1001,9 +1006,9 @@ static int mdss_dsi_post_panel_on(struct mdss_panel_data *pdata)
 		msleep(vsync_period);
 		mdss_dba_utils_hdcp_enable(pinfo->dba_data, true);
 	}
-
-	bb_panel_is_off = true;
-
+#ifdef CONFIG_TCT_SDM660_COMMON
+	bb_panel_is_off = false;
+#endif
 end:
 	pr_debug("%s:-\n", __func__);
 	return 0;
@@ -1037,6 +1042,9 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 		mdss_dba_utils_video_off(pinfo->dba_data);
 		mdss_dba_utils_hdcp_enable(pinfo->dba_data, false);
 	}
+#ifdef CONFIG_TCT_SDM660_COMMON
+	bb_panel_is_off = true;
+#endif
 
 end:
 	pr_debug("%s:-\n", __func__);
@@ -1809,13 +1817,17 @@ static bool mdss_dsi_cmp_panel_reg_v2(struct mdss_dsi_ctrl_pdata *ctrl)
 	for (i = 0; i < ctrl->status_cmds.cmd_cnt; i++)
 		len += lenp[i];
 
+	for (i = 0; i < len; i++) {
+		pr_debug("[%i] return:0x%x status:0x%x\n",
+			i, (unsigned int)ctrl->return_buf[i],
+			(unsigned int)ctrl->status_value[j + i]);
+		MDSS_XLOG(ctrl->ndx, ctrl->return_buf[i],
+			ctrl->status_value[j + i]);
+		j += len;
+	}
+
 	for (j = 0; j < ctrl->groups; ++j) {
 		for (i = 0; i < len; ++i) {
-			pr_debug("[%i] return:0x%x status:0x%x\n",
-				i, ctrl->return_buf[i],
-				(unsigned int)ctrl->status_value[group + i]);
-			MDSS_XLOG(ctrl->ndx, ctrl->return_buf[i],
-					ctrl->status_value[group + i]);
 			if (ctrl->return_buf[i] !=
 				ctrl->status_value[group + i])
 				break;
@@ -2326,15 +2338,14 @@ static void mdss_dsi_parse_dfps_config(struct device_node *pan_node,
 			struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	const char *data;
-	bool dynamic_fps, dynamic_bitclk;
+	bool dynamic_fps;
 	struct mdss_panel_info *pinfo = &(ctrl_pdata->panel_data.panel_info);
-	int rc = 0;
 
 	dynamic_fps = of_property_read_bool(pan_node,
 			"qcom,mdss-dsi-pan-enable-dynamic-fps");
 
 	if (!dynamic_fps)
-		goto dynamic_bitclk;
+		return;
 
 	pinfo->dynamic_fps = true;
 	data = of_get_property(pan_node, "qcom,mdss-dsi-pan-fps-update", NULL);
@@ -2364,31 +2375,6 @@ static void mdss_dsi_parse_dfps_config(struct device_node *pan_node,
 	pinfo->new_fps = pinfo->mipi.frame_rate;
 	pinfo->current_fps = pinfo->mipi.frame_rate;
 
-dynamic_bitclk:
-	dynamic_bitclk = of_property_read_bool(pan_node,
-			"qcom,mdss-dsi-pan-enable-dynamic-bitclk");
-	if (!dynamic_bitclk)
-		return;
-
-	of_find_property(pan_node, "qcom,mdss-dsi-dynamic-bitclk_freq",
-		&pinfo->supp_bitclk_len);
-	pinfo->supp_bitclk_len = pinfo->supp_bitclk_len/sizeof(u32);
-	if (pinfo->supp_bitclk_len < 1)
-		return;
-
-	pinfo->supp_bitclks = kzalloc((sizeof(u32) * pinfo->supp_bitclk_len),
-		GFP_KERNEL);
-	if (!pinfo->supp_bitclks)
-		return;
-
-	rc = of_property_read_u32_array(pan_node,
-		"qcom,mdss-dsi-dynamic-bitclk_freq", pinfo->supp_bitclks,
-		pinfo->supp_bitclk_len);
-	if (rc) {
-		pr_err("Error from dynamic bitclk freq u64 array read\n");
-		return;
-	}
-	pinfo->dynamic_bitclk = true;
 	return;
 }
 

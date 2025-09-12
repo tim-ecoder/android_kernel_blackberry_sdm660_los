@@ -1,7 +1,7 @@
 /*
  * Core MDSS framebuffer driver.
  *
- * Copyright (c) 2008-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2008-2017, The Linux Foundation. All rights reserved.
  * Copyright (C) 2007 Google Incorporated
  *
  * This software is licensed under the terms of the GNU General Public
@@ -55,6 +55,10 @@
 #include "mdss_debug.h"
 #include "mdss_smmu.h"
 #include "mdss_mdp.h"
+
+#include "mdss_dsi_cmd.h"
+#include "mdss_dsi.h"
+
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
@@ -610,7 +614,7 @@ static ssize_t mdss_fb_get_panel_info(struct device *dev,
 			"red_chromaticity_x=%d\nred_chromaticity_y=%d\n"
 			"green_chromaticity_x=%d\ngreen_chromaticity_y=%d\n"
 			"blue_chromaticity_x=%d\nblue_chromaticity_y=%d\n"
-			"panel_orientation=%d\ndyn_bitclk_en=%d\n",
+			"panel_orientation=%d\n",
 			pinfo->partial_update_enabled,
 			pinfo->roi_alignment.xstart_pix_align,
 			pinfo->roi_alignment.width_pix_align,
@@ -636,7 +640,7 @@ static ssize_t mdss_fb_get_panel_info(struct device *dev,
 			pinfo->hdr_properties.display_primaries[5],
 			pinfo->hdr_properties.display_primaries[6],
 			pinfo->hdr_properties.display_primaries[7],
-			pinfo->panel_orientation, pinfo->dynamic_bitclk);
+			pinfo->panel_orientation);
 
 	return ret;
 }
@@ -913,6 +917,154 @@ static ssize_t mdss_fb_idle_pc_notify(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "idle power collapsed\n");
 }
 
+static char cmd2_open_code1[2] = {0x00, 0x00};
+static char cmd2_open_code2[4] = {0xff, 0x87, 0x07, 0x01};
+static char cmd2_open_code3[2] = {0x00, 0x80};
+static char cmd2_open_code4[3] = {0xff, 0x87, 0x07};
+static char cmd2_close_code1[2] = {0x00, 0x00};
+static char cmd2_close_code2[4] = {0xff, 0x00, 0x00, 0x00};
+static char cmd2_close_code3[2] = {0x00, 0x80};
+static char cmd2_close_code4[3] = {0xff, 0x00, 0x00};
+static struct dsi_cmd_desc fts_cmd2_open_cmd[] = {
+	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(cmd2_open_code1)}, cmd2_open_code1},
+	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(cmd2_open_code2)}, cmd2_open_code2},
+	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(cmd2_open_code3)}, cmd2_open_code3},
+	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(cmd2_open_code4)}, cmd2_open_code4},
+};
+static struct dsi_cmd_desc fts_cmd2_close_cmd[] = {
+	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(cmd2_close_code1)}, cmd2_close_code1},
+	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(cmd2_close_code2)}, cmd2_close_code2},
+	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(cmd2_close_code3)}, cmd2_close_code3},
+	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(cmd2_close_code4)}, cmd2_close_code4},
+};
+
+void fts_cmd2_enable(struct mdss_dsi_ctrl_pdata *ctrl, bool enable)
+{
+	struct dcs_cmd_req cmdreq;
+	struct mdss_panel_info *pinfo;
+
+	pinfo = &(ctrl->panel_data.panel_info);
+	if (pinfo->dcs_cmd_by_left && ctrl->ndx != DSI_CTRL_LEFT)
+		return;
+
+	memset(&cmdreq, 0, sizeof(cmdreq));
+	if (enable)
+		cmdreq.cmds = fts_cmd2_open_cmd;
+	else
+		cmdreq.cmds = fts_cmd2_close_cmd;
+	cmdreq.cmds_cnt = 4;
+	cmdreq.flags = CMD_REQ_COMMIT | CMD_REQ_LP_MODE;
+	cmdreq.rlen = 0;
+	cmdreq.cb = NULL;
+
+	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+}
+
+static int focaltech_sre_enable(struct mdss_dsi_ctrl_pdata *ctrl, int enable)
+{
+	struct dcs_cmd_req cmdreq;
+	struct dsi_cmd_desc cmds;
+	char cmds_buf[2] = {0};
+	int ret;
+
+	printk("focaltech_sre_enable: enable=%d\n", enable);
+	fts_cmd2_enable(ctrl, true);
+
+	memset(&cmdreq, 0, sizeof(cmdreq));
+	cmds_buf[0] = 0x92;
+	if (enable)
+		cmds_buf[1] = 0xa8;
+	else
+		cmds_buf[1] = 0;
+
+	cmds.dchdr.dtype = 0x15;
+	cmds.dchdr.vc = 0;
+	cmds.dchdr.ack = 0;
+	cmds.dchdr.wait = 0;
+	cmds.dchdr.last = 1;
+	cmds.dchdr.dlen = 2;
+	cmds.payload = cmds_buf;
+
+	cmdreq.cmds = &cmds;
+	cmdreq.cmds_cnt = 1;
+	cmdreq.flags = CMD_REQ_COMMIT | CMD_REQ_LP_MODE;
+	cmdreq.rlen = 0;
+	cmdreq.cb = NULL;
+
+	ret = mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+
+	fts_cmd2_enable(ctrl, false);
+
+	return ret;
+}
+
+static int synaptics_sre_enable(struct mdss_dsi_ctrl_pdata *ctrl, int enable)
+{
+	struct dcs_cmd_req cmdreq;
+	struct dsi_cmd_desc cmds;
+	char cmds_buf[2] = {0};
+	int ret;
+
+	printk("synaptics_sre_enable: enable=%d\n", enable);
+
+	memset(&cmdreq, 0, sizeof(cmdreq));
+	cmds_buf[0] = 0x55;
+	if (enable)
+		cmds_buf[1] = 0x50;
+	else
+		cmds_buf[1] = 0x0;
+
+	cmds.dchdr.dtype = 0x15;
+	cmds.dchdr.vc = 0;
+	cmds.dchdr.ack = 0;
+	cmds.dchdr.wait = 0;
+	cmds.dchdr.last = 1;
+	cmds.dchdr.dlen = 2;
+	cmds.payload = cmds_buf;
+
+	cmdreq.cmds = &cmds;
+	cmdreq.cmds_cnt = 1;
+	cmdreq.flags = CMD_REQ_COMMIT | CMD_REQ_LP_MODE;
+	cmdreq.rlen = 0;
+	cmdreq.cb = NULL;
+
+	ret = mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+
+	return ret;
+}
+
+static ssize_t sre_enable(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = fbi->par;
+	struct mdss_panel_info *pinfo = mfd->panel_info;
+	struct mdss_panel_data *pdata =
+			container_of(pinfo, struct mdss_panel_data, panel_info);
+	char focaltech_lcd_name[] = "Livata video mode dsi panel";
+
+	int enable;
+	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
+	int ret;
+
+	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+						panel_data);
+
+	if (sscanf(buf, "%d", &enable) != 1)
+		return -EINVAL;
+
+	if (enable < 0 || enable > 1)
+		return -EINVAL;
+
+	if (strcmp(pinfo->panel_name, focaltech_lcd_name) == 0)
+		ret = focaltech_sre_enable(ctrl, enable);
+	else
+		ret = synaptics_sre_enable(ctrl, enable);
+
+	return count;
+}
+
+
 static DEVICE_ATTR(msm_fb_type, S_IRUGO, mdss_fb_get_type, NULL);
 static DEVICE_ATTR(msm_fb_split, S_IRUGO | S_IWUSR, mdss_fb_show_split,
 					mdss_fb_store_split);
@@ -934,6 +1086,8 @@ static DEVICE_ATTR(measured_fps, S_IRUGO | S_IWUSR | S_IWGRP,
 static DEVICE_ATTR(msm_fb_persist_mode, S_IRUGO | S_IWUSR,
 	mdss_fb_get_persist_mode, mdss_fb_change_persist_mode);
 static DEVICE_ATTR(idle_power_collapse, S_IRUGO, mdss_fb_idle_pc_notify, NULL);
+static DEVICE_ATTR(sre_enable, S_IRUGO|S_IRGRP|S_IWUSR|S_IWGRP, NULL, sre_enable);
+
 
 static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_msm_fb_type.attr,
@@ -949,6 +1103,7 @@ static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_measured_fps.attr,
 	&dev_attr_msm_fb_persist_mode.attr,
 	&dev_attr_idle_power_collapse.attr,
+	&dev_attr_sre_enable.attr,
 	NULL,
 };
 
@@ -3507,19 +3662,16 @@ static int mdss_fb_pan_display(struct fb_var_screeninfo *var,
 {
 	struct mdp_display_commit disp_commit;
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
-	struct mdss_data_type *mdata = mfd_to_mdata(mfd);
 
 	/*
-	 * Abort pan_display operations in following cases:
-	 * 1. during mode switch through mode sysfs node, it will trigger a
-	 *    pan_display after switch. This assumes that fb has been adjusted,
-	 *    however when using overlays we may not have the right size at this
-	 *    point, so it needs to go through PREPARE first.
-	 * 2. When the splash handoff is pending.
+	 * during mode switch through mode sysfs node, it will trigger a
+	 * pan_display after switch. This assumes that fb has been adjusted,
+	 * however when using overlays we may not have the right size at this
+	 * point, so it needs to go through PREPARE first. Abort pan_display
+	 * operations until that happens
 	 */
-	if ((mfd->switch_state != MDSS_MDP_NO_UPDATE_REQUESTED) ||
-		(mdss_fb_is_hdmi_primary(mfd) && mdata->handoff_pending)) {
-		pr_debug("fb%d: pan_display skipped during switch or handoff\n",
+	if (mfd->switch_state != MDSS_MDP_NO_UPDATE_REQUESTED) {
+		pr_debug("fb%d: pan_display skipped during switch\n",
 				mfd->index);
 		return 0;
 	}
@@ -3992,7 +4144,7 @@ static int mdss_fb_set_par(struct fb_info *info)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	struct fb_var_screeninfo *var = &info->var;
-	int old_imgType, old_format, out_format;
+	int old_imgType, old_format;
 	int ret = 0;
 
 	ret = mdss_fb_pan_idle(mfd);
@@ -4075,23 +4227,17 @@ static int mdss_fb_set_par(struct fb_info *info)
 		mfd->fbi->fix.smem_len = PAGE_ALIGN(mfd->fbi->fix.line_length *
 				mfd->fbi->var.yres) * mfd->fb_page;
 
-	old_format = mfd->panel_info->out_format;
-	out_format = mdss_grayscale_to_mdp_format(var->grayscale);
-	if (!IS_ERR_VALUE(out_format)) {
-		mfd->panel_info->out_format = out_format;
+	old_format = mdss_grayscale_to_mdp_format(var->grayscale);
+	if (!IS_ERR_VALUE(old_format)) {
 		if (old_format != mfd->panel_info->out_format)
 			mfd->panel_reconfig = true;
 	}
-
-	if (mdss_fb_is_hdmi_primary(mfd) && mfd->panel_reconfig)
-		mfd->force_null_commit = true;
 
 	if (mfd->panel_reconfig || (mfd->fb_imgType != old_imgType)) {
 		mdss_fb_blank_sub(FB_BLANK_POWERDOWN, info, mfd->op_enable);
 		mdss_fb_var_to_panelinfo(var, mfd->panel_info);
 		mdss_fb_blank_sub(FB_BLANK_UNBLANK, info, mfd->op_enable);
 		mfd->panel_reconfig = false;
-		mfd->force_null_commit = false;
 	}
 
 	return ret;
@@ -4671,7 +4817,6 @@ static int mdss_fb_atomic_commit_ioctl(struct fb_info *info,
 	struct mdp_destination_scaler_data __user *ds_data_user;
 	struct msm_fb_data_type *mfd;
 	struct mdss_overlay_private *mdp5_data = NULL;
-	struct mdss_data_type *mdata;
 
 	ret = copy_from_user(&commit, argp, sizeof(struct mdp_layer_commit));
 	if (ret) {
@@ -4722,7 +4867,6 @@ static int mdss_fb_atomic_commit_ioctl(struct fb_info *info,
 	input_layer_list = commit.commit_v1.input_layers;
 
 	if (layer_count > MAX_LAYER_COUNT) {
-		pr_err("invalid layer count :%d\n", layer_count);
 		ret = -EINVAL;
 		goto err;
 	} else if (layer_count) {
@@ -4774,13 +4918,6 @@ static int mdss_fb_atomic_commit_ioctl(struct fb_info *info,
 	ds_data_user = commit.commit_v1.dest_scaler;
 	if ((ds_data_user) &&
 		(commit.commit_v1.dest_scaler_cnt)) {
-		mdata = mfd_to_mdata(mfd);
-		if (!mdata || !mdata->scaler_off ||
-				 !mdata->scaler_off->has_dest_scaler) {
-			pr_err("dest scaler not supported\n");
-			ret = -EPERM;
-			goto err;
-		}
 		ret = __mdss_fb_copy_destscaler_data(info, &commit);
 		if (ret) {
 			pr_err("copy dest scaler failed\n");

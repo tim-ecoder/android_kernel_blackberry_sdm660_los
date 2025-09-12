@@ -683,6 +683,7 @@ static int synaptics_rmi4_parse_dt(struct device *dev,
 	of_property_read_string(np,
 				"synaptics,input-device-name",
 				&bdata->input_dev_name);
+#if defined(CONFIG_BBRY) || defined(BBRY_MINISW)
 	if (of_property_read_u32(np, "synaptics,panel_x",
 			&bdata->panel_x))
 		bdata->panel_x = 0;
@@ -695,6 +696,7 @@ static int synaptics_rmi4_parse_dt(struct device *dev,
 	if (of_property_read_u32(np, "synaptics,num_of_tx_electrodes",
 			&bdata->num_of_tx_electrodes))
 		bdata->num_of_tx_electrodes = 0;
+#endif
 
 	/* check for virtual keys */
 	synaptics_dsx_get_virtual_keys(dev, "synaptics,vkey-entries", bdata, np);

@@ -369,10 +369,6 @@ struct synaptics_rmi4_data {
 	struct mutex rmi4_irq_enable_mutex;
 	struct delayed_work rb_work;
 	struct workqueue_struct *rb_workqueue;
-#ifdef CONFIG_CKB_MASK_KEY
-	struct delayed_work nav_key_report_work;
-	struct workqueue_struct *btn_workqueue;
-#endif
 #ifdef CONFIG_FB
 	struct notifier_block fb_notifier;
 	struct work_struct reset_work;
