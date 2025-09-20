@@ -1,5 +1,5 @@
 /************************************************************************
-* Copyright (C) 2012-2015, Focaltech Systems (R)£¬All Rights Reserved.
+* Copyright (C) 2012-2015, Focaltech Systems (R)All Rights Reserved.
 *
 * File Name: Config_FT5X46.c
 *
@@ -366,7 +366,7 @@ void OnInit_FT5822_BasicThreshold(char * strIniFile)
 	g_stCfg_FT5822_BasicThreshold.PanelDiffer_UniformityTest_MinMax_Hole = fts_atoi(str);
 }
 
-void SetTestItem_FT5822()
+void SetTestItem_FT5822(void)
 {
 	//int value = 0;
 	g_TestItemNum = 0;

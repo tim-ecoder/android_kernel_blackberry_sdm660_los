@@ -1,5 +1,5 @@
 /************************************************************************
-* Copyright (C) 2012-2015, Focaltech Systems (R)，All Rights Reserved.
+* Copyright (C) 2012-2015, Focaltech Systems (R)All Rights Reserved.
 *
 * File Name: Config_FT6X36.c
 *
@@ -216,7 +216,7 @@ void OnInit_FT6X36_BasicThreshold(char *strIniFile)
 	GetPrivateProfileString("Basic_Threshold","DeltaCbTest_Deviation_S6","12",str,strIniFile);
 	g_stCfg_FT6X36_BasicThreshold.DeltaCbTest_Deviation_S6 = fts_atoi(str);
 
-	/////////////临界值
+	/////////////俳值
 	GetPrivateProfileString("Basic_Threshold","DeltaCbTest_Set_Critical","0",str,strIniFile);
 	g_stCfg_FT6X36_BasicThreshold.DeltaCbTest_Set_Critical = fts_atoi(str);
 
@@ -257,7 +257,7 @@ void OnInit_FT6X36_BasicThreshold(char *strIniFile)
 	GetPrivateProfileString("Basic_Threshold","ChannelsDeviationTest_Deviation_S6","8",str,strIniFile);
 	g_stCfg_FT6X36_BasicThreshold.ChannelsDeviationTest_Deviation_S6 = fts_atoi(str);
 
-	/////////////临界值
+	/////////////俳值
 	GetPrivateProfileString("Basic_Threshold","ChannelsDeviationTest_Set_Critical","0",str,strIniFile);
 	g_stCfg_FT6X36_BasicThreshold.ChannelsDeviationTest_Set_Critical = fts_atoi(str);
 
@@ -297,7 +297,7 @@ void OnInit_FT6X36_BasicThreshold(char *strIniFile)
 	GetPrivateProfileString("Basic_Threshold","TwoSidesDeviationTest_Deviation_S6","5",str,strIniFile);
 	g_stCfg_FT6X36_BasicThreshold.TwoSidesDeviationTest_Deviation_S6 = fts_atoi(str);
 
-	/////////////临界值
+	/////////////俳值
 	GetPrivateProfileString("Basic_Threshold","TwoSidesDeviationTest_Set_Critical","0",str,strIniFile);
 	g_stCfg_FT6X36_BasicThreshold.TwoSidesDeviationTest_Set_Critical = fts_atoi(str);
 
@@ -404,7 +404,7 @@ void OnInit_FT6X36_BasicThreshold(char *strIniFile)
 	g_stCfg_FT6X36_BasicThreshold.K1DifferTest_Deviation4 = fts_atoi(str);
 }
 
-void SetTestItem_FT6X36()
+void SetTestItem_FT6X36(void)
 {
 	//int value = 0;
 	g_TestItemNum = 0;

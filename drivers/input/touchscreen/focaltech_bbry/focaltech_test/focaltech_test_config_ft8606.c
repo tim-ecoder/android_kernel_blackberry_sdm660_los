@@ -1,5 +1,5 @@
 /************************************************************************
-* Copyright (C) 2012-2015, Focaltech Systems (R)£¬All Rights Reserved.
+* Copyright (C) 2012-2015, Focaltech Systems (R)All Rights Reserved.
 *
 * File Name: Config_FT8606.c
 *
@@ -181,7 +181,7 @@ void OnInit_FT8606_TestItem(char *strIniFile)
 	
 }
 
-void SetTestItem_FT8606()
+void SetTestItem_FT8606(void)
 {
 	g_TestItemNum = 0;
 

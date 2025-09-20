@@ -1,5 +1,5 @@
 /************************************************************************
-* Copyright (C) 2012-2015, Focaltech Systems (R)£¬All Rights Reserved.
+* Copyright (C) 2012-2015, Focaltech Systems (R)All Rights Reserved.
 *
 * File Name: Test_FT5822.c
 *
@@ -131,7 +131,7 @@ static unsigned char SwitchToNoMapping(void);
 * Output: none
 * Return: Test Result, PASS or FAIL
 ***********************************************************************/
-boolean FT5822_StartTest()
+boolean FT5822_StartTest(void)
 {
 	bool bTestResult = true;
 	bool bTempResult = 1;
@@ -307,7 +307,7 @@ int FT5822_get_test_data(char *pTestData)
 unsigned char FT5822_TestItem_EnterFactoryMode(void)
 {	
 	unsigned char ReCode = ERROR_CODE_INVALID_PARAM;
-	int iRedo = 5;	//Èç¹û²»³É¹¦£¬ÖØ¸´½øÈë5´Î
+	int iRedo = 5;	//É¹Ø¸5
 	int i ;
 	unsigned char chPattern=0;
 
@@ -338,13 +338,13 @@ unsigned char FT5822_TestItem_EnterFactoryMode(void)
 		return ReCode;
 	}
 
-	//½ø¹¤³§Ä£Ê½³É¹¦ºó£¬¾Í¶Á³öÍ¨µÀÊı
+	//Ä£Ê½É¹ó£¬¾Í¶Í¨
 	ReCode = GetChannelNum();
 
-	////////////ÉèÖÃFIR£¬0£º¹Ø±Õ£¬1£º´ò¿ª
+	////////////FIR0Ø±Õ£1
 	//theDevice.m_cHidDev[m_NumDevice]->WriteReg(0xFB, 0);
 
-	//ÅĞ¶ÏÊÇ·ñÎªV3ÆÁÌå
+	//Ğ¶Ç·ÎªV3
 	ReCode = ReadReg( REG_PATTERN_5422, &chPattern );
 	if (chPattern == 1)
 	{
@@ -387,8 +387,8 @@ unsigned char FT5822_TestItem_RawDataTest(bool * bTestResult)
 	}
 
 
-	//ÏÈÅĞ¶ÏÊÇ·ñÎªv3ÆÁÌå£¬È»ºó¶ÁÈ¡0x54µÄÖµ£¬²¢ÅĞ¶ÏÓëÉè¶¨µÄmappingÀàĞÍÊÇ·ñÒ»ÖÂ£¬²»Ò»ÖÂĞ´ÈëÊı¾İ
-	//rawdata test mappingºó£¬mappingÇ°£º0x54=1;mappingºó£º0x54=0;
+	//Ğ¶Ç·Îªv3å£¬È»È¡0x54ÖµĞ¶è¶¨mappingÇ·Ò»Â£Ò»Ğ´
+	//rawdata test mappingmappingÇ°0x54=1;mapping0x54=0;
 	if (m_bV3TP)
 	{
 		ReCode = ReadReg( REG_MAPPING_SWITCH, &strSwitch );
@@ -399,28 +399,28 @@ unsigned char FT5822_TestItem_RawDataTest(bool * bTestResult)
 		}			
 	}
 
-	//ÖğĞĞÖğÁĞ¹éÒ»Ö®ºóµÄrawdataÖµ£¬0X16=0Ä¬ÈÏ
-	ReCode = ReadReg( REG_NORMALIZE_TYPE, &OriginValue );//¶ÁÈ¡Ô­Ê¼Öµ	
+	//Ğ¹Ò»Ö®rawdataÖµ0X16=0Ä¬
+	ReCode = ReadReg( REG_NORMALIZE_TYPE, &OriginValue );//È¡Ô­Ê¼Öµ	
 	if( ReCode != ERROR_CODE_OK )goto TEST_ERR;
 
 
 	if (g_ScreenSetParam.isNormalize == Auto_Normalize)
 	{
-		if(OriginValue != 1)//Ô­Ê¼ÖµÓëĞèÒª¸Ä±äµÄÖµ²»Í¬£¬ÔòĞ´¼Ä´æÆ÷ÎªĞèÒªµÄÖµ
+		if(OriginValue != 1)//Ô­Ê¼ÖµÒªÄ±ÖµÍ¬Ğ´Ä´ÎªÒªÖµ
 		{
 			ReCode = WriteReg( REG_NORMALIZE_TYPE, 0x01 );
 			if( ReCode != ERROR_CODE_OK )goto TEST_ERR;
 		}
-		//ÉèÖÃ¸ßÆµµã
+		//Ã¸Æµ
 
 		FTS_TEST_DBG( "\n=========Set Frequecy High\n" );
 		ReCode = WriteReg( 0x0A, 0x81 );
 		if( ReCode != ERROR_CODE_OK )goto TEST_ERR;
 
 		FTS_TEST_DBG( "\n=========FIR State: ON");
-		ReCode = WriteReg(0xFB, 1);//FIR OFF  0£º¹Ø±Õ£¬1£º´ò¿ª
+		ReCode = WriteReg(0xFB, 1);//FIR OFF  0Ø±Õ£1
 		if( ReCode != ERROR_CODE_OK )goto TEST_ERR;
-		//ÏÈÇ°¸Ä±äÁË¼Ä´æÆ÷ Ğè¶ªÈıÖ¡Êı¾İ
+		//Ç°Ä±Ë¼Ä´ è¶ªÖ¡
 		for (index = 0; index < 3; ++index )
 		{
 			ReCode = GetRawData();
@@ -457,7 +457,7 @@ unsigned char FT5822_TestItem_RawDataTest(bool * bTestResult)
 	}
 	else
 	{	
-		if(OriginValue != 0)//Ô­Ê¼ÖµÓëĞèÒª¸Ä±äµÄÖµ²»Í¬£¬ÔòĞ´¼Ä´æÆ÷ÎªĞèÒªµÄÖµ
+		if(OriginValue != 0)//Ô­Ê¼ÖµÒªÄ±ÖµÍ¬Ğ´Ä´ÎªÒªÖµ
 		{
 			ReCode = WriteReg( REG_NORMALIZE_TYPE, 0x00 );	
 			if( ReCode != ERROR_CODE_OK )goto TEST_ERR;
@@ -467,20 +467,20 @@ unsigned char FT5822_TestItem_RawDataTest(bool * bTestResult)
 		if( ReCode != ERROR_CODE_OK )goto TEST_ERR;
 
 
-		//ÉèÖÃµÍÆµµã
+		//ÃµÆµ
 		if(g_stCfg_FT5822_BasicThreshold.RawDataTest_SetLowFreq)
 		{
 			FTS_TEST_DBG("\n=========Set Frequecy Low");
 			ReCode = WriteReg( 0x0A, 0x80 );
 			if( ReCode != ERROR_CODE_OK )goto TEST_ERR;
 
-			//FIR OFF  0£º¹Ø±Õ£¬1£º´ò¿ª
+			//FIR OFF  0Ø±Õ£1
 
 			FTS_TEST_DBG("\n=========FIR State: OFF\n" );
 			ReCode = WriteReg(0xFB, 0);
 			if( ReCode != ERROR_CODE_OK )goto TEST_ERR;
 			SysDelay(100);
-			//ÏÈÇ°¸Ä±äÁË¼Ä´æÆ÷ Ğè¶ªÈıÖ¡Êı¾İ
+			//Ç°Ä±Ë¼Ä´ è¶ªÖ¡
 			for (index = 0; index < 3; ++index )
 			{
 				ReCode = GetRawData();
@@ -517,7 +517,7 @@ unsigned char FT5822_TestItem_RawDataTest(bool * bTestResult)
 		}
 
 
-		//ÉèÖÃ¸ßÆµµã
+		//Ã¸Æµ
 		if ( g_stCfg_FT5822_BasicThreshold.RawDataTest_SetHighFreq )
 		{
 
@@ -525,13 +525,13 @@ unsigned char FT5822_TestItem_RawDataTest(bool * bTestResult)
 			ReCode = WriteReg( 0x0A, 0x81 );
 			if( ReCode != ERROR_CODE_OK )goto TEST_ERR;
 
-			//FIR OFF  0£º¹Ø±Õ£¬1£º´ò¿ª
+			//FIR OFF  0Ø±Õ£1
 
 			FTS_TEST_DBG("\n=========FIR State: OFF\n" );
 			ReCode = WriteReg(0xFB, 0);
 			if( ReCode != ERROR_CODE_OK )goto TEST_ERR;
 			SysDelay(100);
-			//ÏÈÇ°¸Ä±äÁË¼Ä´æÆ÷ Ğè¶ªÈıÖ¡Êı¾İ
+			//Ç°Ä±Ë¼Ä´ è¶ªÖ¡
 			for (index = 0; index < 3; ++index )
 			{
 				ReCode = GetRawData();
@@ -571,10 +571,10 @@ unsigned char FT5822_TestItem_RawDataTest(bool * bTestResult)
 
 
 
-	ReCode = WriteReg( REG_NORMALIZE_TYPE, OriginValue );//»Ö¸´Ô­À´¼Ä´æÆ÷Öµ
+	ReCode = WriteReg( REG_NORMALIZE_TYPE, OriginValue );//Ö¸Ô­Ä´Öµ
 	if( ReCode != ERROR_CODE_OK )goto TEST_ERR;
 
-	//»Ö¸´v3ÆÁÌåµÄmappingÖµ
+	//Ö¸v3mappingÖµ
 	if (m_bV3TP)
 	{
 		ReCode = WriteReg( REG_MAPPING_SWITCH, strSwitch );
@@ -655,14 +655,14 @@ unsigned char FT5822_TestItem_SCapRawDataTest(bool * bTestResult)
 	{
 		memset(m_iTempRawData, 0, sizeof(m_iTempRawData));
 
-		//·ÀË®rawdata
+		//Ë®rawdata
 		ByteNum = (g_ScreenSetParam.iTxNum + g_ScreenSetParam.iRxNum)*2;
 		ReCode = ReadRawData(0, 0xAC, ByteNum, m_iTempRawData);
 		if(ReCode != ERROR_CODE_OK)goto TEST_ERR;
 		memcpy( m_RawData[0+g_ScreenSetParam.iTxNum], m_iTempRawData, sizeof(int)*g_ScreenSetParam.iRxNum );
 		memcpy( m_RawData[1+g_ScreenSetParam.iTxNum], m_iTempRawData + g_ScreenSetParam.iRxNum, sizeof(int)*g_ScreenSetParam.iTxNum );
 
-		//·Ç·ÀË®rawdata
+		//Ç·Ë®rawdata
 		ByteNum = (g_ScreenSetParam.iTxNum + g_ScreenSetParam.iRxNum)*2;
 		ReCode = ReadRawData(0, 0xAB, ByteNum, m_iTempRawData);
 		if(ReCode != ERROR_CODE_OK)goto TEST_ERR;
@@ -826,7 +826,7 @@ unsigned char FT5822_TestItem_SCapRawDataTest(bool * bTestResult)
 			}
 		}	
 
-		//Ö»ÓĞ×ÔÈİ²Å»áÊ¹ÓÃMappingÇ°µÄ£¬ËùÒÔ¸Ã²âÊÔÏî½áÊøÒÔºó£¬ĞèÒª×ªµ½Mappingºó
+		//Ö»İ²Å»Ê¹MappingÇ°Ä£Ô¸Ã²ÔºÒª×ªMapping
 		GetChannelNum();
 	}
 
@@ -904,8 +904,8 @@ unsigned char FT5822_TestItem_SCapCbTest(bool* bTestResult)
 		memset(m_RawData, 0, sizeof(m_RawData));
 		memset(m_ucTempData, 0, sizeof(m_ucTempData));
 
-		//·ÀË®CB
-		ReCode = WriteReg( REG_ScWorkMode, 1 );//×ÔÈİ¹¤×÷·½Ê½Ñ¡Ôñ:  1£º·ÀË® 0:·Ç·ÀË®
+		//Ë®CB
+		ReCode = WriteReg( REG_ScWorkMode, 1 );//İ¹Ê½Ñ¡:  1Ë® 0:Ç·Ë®
 		ReCode = StartScan();
 		ReCode = WriteReg( REG_ScCbAddrR, 0 );			
 		ReCode = GetTxSC_CB( g_ScreenSetParam.iTxNum + g_ScreenSetParam.iRxNum + 128, m_ucTempData );
@@ -918,8 +918,8 @@ unsigned char FT5822_TestItem_SCapCbTest(bool* bTestResult)
 			m_RawData[1 + g_ScreenSetParam.iTxNum][index] = m_ucTempData[index + g_ScreenSetParam.iRxNum];
 		}
 
-		//·Ç·ÀË®rawdata
-		ReCode = WriteReg( REG_ScWorkMode, 0 );//×ÔÈİ¹¤×÷·½Ê½Ñ¡Ôñ:  1£º·ÀË® 0:·Ç·ÀË®
+		//Ç·Ë®rawdata
+		ReCode = WriteReg( REG_ScWorkMode, 0 );//İ¹Ê½Ñ¡:  1Ë® 0:Ç·Ë®
 		ReCode = StartScan();
 		ReCode = WriteReg( REG_ScCbAddrR, 0 );
 		ReCode = GetTxSC_CB( g_ScreenSetParam.iRxNum + g_ScreenSetParam.iTxNum + 128, m_ucTempData );
@@ -1096,7 +1096,7 @@ unsigned char FT5822_TestItem_SCapCbTest(bool* bTestResult)
 			}
 		}	
 
-		//Ö»ÓĞ×ÔÈİ²Å»áÊ¹ÓÃMappingÇ°µÄ£¬ËùÒÔ¸Ã²âÊÔÏî½áÊøÒÔºó£¬ĞèÒª×ªµ½Mappingºó
+		//Ö»İ²Å»Ê¹MappingÇ°Ä£Ô¸Ã²ÔºÒª×ªMapping
 		GetChannelNum();
 	}
 
@@ -1155,17 +1155,17 @@ static int StartScan(void)
 {
 	unsigned char RegVal = 0;
 	unsigned char times = 0;
-	const unsigned char MaxTimes = 20;	//×î³¤µÈ´ı160ms
+	const unsigned char MaxTimes = 20;	//î³¤È´160ms
 	unsigned char ReCode = ERROR_CODE_COMM_ERROR;
 
 	ReCode = ReadReg(DEVIDE_MODE_ADDR, &RegVal);
 	if(ReCode == ERROR_CODE_OK)
 	{
-		RegVal |= 0x80;		//×î¸ßÎ»ÖÃ1£¬Æô¶¯É¨Ãè
+		RegVal |= 0x80;		//Î»1É¨
 		ReCode = WriteReg(DEVIDE_MODE_ADDR, RegVal);
 		if(ReCode == ERROR_CODE_OK)
 		{
-			while(times++ < MaxTimes)		//µÈ´ıÉ¨ÃèÍê³É
+			while(times++ < MaxTimes)		//È´É¨
 			{
 				SysDelay(8);	//8ms
 				ReCode = ReadReg(DEVIDE_MODE_ADDR, &RegVal);
@@ -1248,7 +1248,7 @@ unsigned char ReadRawData(unsigned char Freq, unsigned char LineNum, int ByteNum
 		for(i=0; i<(ByteNum>>1); i++)
 		{
 			pRevBuffer[i] = (m_ucTempData[i<<1]<<8)+m_ucTempData[(i<<1)+1];
-			//if(pRevBuffer[i] & 0x8000)//ÓĞ·ûºÅÎ»
+			//if(pRevBuffer[i] & 0x8000)//Ğ·Î»
 			//{
 			//	pRevBuffer[i] -= 0xffff + 1;
 			//}
@@ -1270,13 +1270,13 @@ unsigned char GetTxSC_CB(unsigned char index, unsigned char *pcbValue)
 	unsigned char ReCode = ERROR_CODE_OK;
 	unsigned char wBuffer[4];
 
-	if(index<128)//µ¥¸ö¶ÁÈ¡
+	if(index<128)//È¡
 	{	
 		*pcbValue = 0;
 		WriteReg(REG_ScCbAddrR, index);
 		ReCode = ReadReg(REG_ScCbBuf0, pcbValue);
 	}
-	else//Á¬Ğø¶ÁÈ¡£¬³¤¶ÈÎªindex-128
+	else//È¡Îªindex-128
 	{
 		WriteReg(REG_ScCbAddrR, 0);
 		wBuffer[0] = REG_ScCbBuf0;	
@@ -1670,26 +1670,26 @@ static boolean GetTestCondition(int iTestType, unsigned char ucChannelValue)
 	boolean bIsNeeded = false;
 	switch(iTestType)
 	{
-	case WT_NeedProofOnTest://Bit5:  0£º¼ì²â·ÀË®Ä£Ê½;  1£º²»¼ì²â·ÀË®Ä£Ê½
+	case WT_NeedProofOnTest://Bit5:  0Ë®Ä£Ê½;  1Ë®Ä£Ê½
 		bIsNeeded = !( ucChannelValue & 0x20 );
 		break;
-	case WT_NeedProofOffTest://Bit7: 0 ÆÕÍ¨Ä£Ê½¼ì²â£» 1£ºÆÕÍ¨Ä£Ê½²»¼ì²â
+	case WT_NeedProofOffTest://Bit7: 0 Í¨Ä£Ê½â£» 1Í¨Ä£Ê½
 		bIsNeeded = !( ucChannelValue & 0x80 );
 		break;
 	case WT_NeedTxOnVal:
-		//Bit6:  0 : ¼ì²â·ÀË®Rx+Tx£» 1£ºÖ»¼ì²âÒ»¸öÍ¨µÀ 
-		//Bit2:  0: Ö»¼ì²â·ÀË®Tx;  1:  Ö»¼ì²â·ÀË®Rx
+		//Bit6:  0 : Ë®Rx+Tx 1Ö»Ò»Í¨ 
+		//Bit2:  0: Ö»Ë®Tx;  1:  Ö»Ë®Rx
 		bIsNeeded = !( ucChannelValue & 0x40 ) || !( ucChannelValue & 0x04 );
 		break;			
 	case WT_NeedRxOnVal:
-		//Bit6:  0 : ¼ì²â·ÀË®Rx+Tx£» 1£ºÖ»¼ì²âÒ»¸öÍ¨µÀ 
-		//Bit2:  0: Ö»¼ì²â·ÀË®Tx;  1:  Ö»¼ì²â·ÀË®Rx
+		//Bit6:  0 : Ë®Rx+Tx 1Ö»Ò»Í¨ 
+		//Bit2:  0: Ö»Ë®Tx;  1:  Ö»Ë®Rx
 		bIsNeeded = !( ucChannelValue & 0x40 ) || ( ucChannelValue & 0x04 );
 		break;			
-	case WT_NeedTxOffVal://Bit1,Bit0:  00:ÆÕÍ¨Ä£Ê½Tx; 10: ÆÕÍ¨Ä£Ê½Rx+Tx 
+	case WT_NeedTxOffVal://Bit1,Bit0:  00:Í¨Ä£Ê½Tx; 10: Í¨Ä£Ê½Rx+Tx 
 		bIsNeeded = (0x00 == (ucChannelValue & 0x03)) || (0x02 == ( ucChannelValue & 0x03 ));
 		break;			
-	case WT_NeedRxOffVal://Bit1,Bit0:  01: ÆÕÍ¨Ä£Ê½Rx;    10: ÆÕÍ¨Ä£Ê½Rx+Tx
+	case WT_NeedRxOffVal://Bit1,Bit0:  01: Í¨Ä£Ê½Rx;    10: Í¨Ä£Ê½Rx+Tx
 		bIsNeeded = (0x01 == (ucChannelValue & 0x03)) || (0x02 == ( ucChannelValue & 0x03 ));
 		break;
 	default:break;
@@ -1698,7 +1698,7 @@ static boolean GetTestCondition(int iTestType, unsigned char ucChannelValue)
 }
 
 
-//¸ßÆµ¡¢FIR£º0µÄÊı¾İ
+//ÆµFIR0
 unsigned char FT5822_TestItem_UniformityTest(bool * bTestResult)
 {
 	unsigned char ReCode = ERROR_CODE_OK;
@@ -1732,7 +1732,7 @@ unsigned char FT5822_TestItem_UniformityTest(bool * bTestResult)
 		goto TEST_END;
 	}
 
-	//¸ßÆµ 
+	//Æµ 
 	ReCode = WriteReg( REG_FREQUENCY, 0x81 );
 	SysDelay(100);
 	if (ReCode != ERROR_CODE_OK)
@@ -1754,7 +1754,7 @@ unsigned char FT5822_TestItem_UniformityTest(bool * bTestResult)
 		goto TEST_END;
 	}
 
-	//ÏÈÇ°¸Ä±äÁË¼Ä´æÆ÷ Ğè¶ªÈıÖ¡Êı¾İ
+	//Ç°Ä±Ë¼Ä´ è¶ªÖ¡
 	for (index = 0; index < 3; ++index )
 	{
 		ReCode = GetRawData();		
@@ -1866,14 +1866,14 @@ unsigned char FT5822_TestItem_UniformityTest(bool * bTestResult)
 		}
 	}
 
-	//»Ö¸´Ô­ÓĞÆµÂÊ
+	//Ö¸Ô­Æµ
 	ReCode =  WriteReg( REG_FREQUENCY, ucFre );
 	SysDelay(100);
 	if (ReCode != ERROR_CODE_OK)
 	{
 		goto TEST_END;
 	}
-	//»Ö¸´Ô­ÓĞÆµÂÊ,fir
+	//Ö¸Ô­Æµ,fir
 	ReCode =  WriteReg( REG_FIR, FirValue );
 	SysDelay(100);
 	if (ReCode != ERROR_CODE_OK)

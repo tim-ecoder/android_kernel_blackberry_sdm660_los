@@ -1,5 +1,5 @@
 /************************************************************************
-* Copyright (C) 2012-2016, Focaltech Systems (R)£¬All Rights Reserved.
+* Copyright (C) 2012-2016, Focaltech Systems (R)All Rights Reserved.
 *
 * File Name: Config_FTE716.c
 *
@@ -219,7 +219,7 @@ void OnInit_FTE716_BasicThreshold(char *strIniFile)
 	g_stCfg_FTE716_BasicThreshold.Differ2UniformityTest_Differ_Max = fts_atoi(str);
 
 }
-void SetTestItem_FTE716()
+void SetTestItem_FTE716(void)
 {
 	g_TestItemNum = 0;
 

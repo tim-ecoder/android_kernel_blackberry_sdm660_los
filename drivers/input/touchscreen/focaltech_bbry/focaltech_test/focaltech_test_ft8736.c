@@ -1,5 +1,5 @@
 /************************************************************************
-* Copyright (C) 2012-2016, Focaltech Systems (R)£¬All Rights Reserved.
+* Copyright (C) 2012-2016, Focaltech Systems (R)All Rights Reserved.
 *
 * File Name: Test_FT8736.c
 *
@@ -152,7 +152,7 @@ static unsigned int SqrtNew(unsigned int n) ;
 * Output: none
 * Return: Test Result, PASS or FAIL
 ***********************************************************************/
-boolean FT8736_StartTest()
+boolean FT8736_StartTest(void)
 {
 	bool bTestResult = true, bTempResult = 1;
 	unsigned char ReCode;
@@ -171,7 +171,7 @@ boolean FT8736_StartTest()
 	if(0 == g_TestItemNum)
 		bTestResult = false;
 
-	////////²âÊÔ¹ý³Ì£¬¼´ÊÇË³ÐòÖ´ÐÐg_stTestItem½á¹¹ÌåµÄ²âÊÔÏî
+	////////Ô¹Ì£Ë³Ö´g_stTestItemá¹¹Ä²
 	for(iItemCount = 0; iItemCount < g_TestItemNum; iItemCount++)
 	{
 		m_ucTestItemCode = g_stTestItem[ucDevice][iItemCount].ItemCode;
@@ -555,7 +555,7 @@ static int StartScan(void)
 {
 	unsigned char RegVal = 0x00;
 	unsigned char times = 0;
-	const unsigned char MaxTimes = 20;	//×î³¤µÈ´ý160ms
+	const unsigned char MaxTimes = 20;	//î³¤È´160ms
 	unsigned char ReCode = ERROR_CODE_COMM_ERROR;
 
 	//if(hDevice == NULL)		return ERROR_CODE_NO_DEVICE;
@@ -563,11 +563,11 @@ static int StartScan(void)
 	ReCode = ReadReg(DEVIDE_MODE_ADDR,&RegVal);
 	if(ReCode == ERROR_CODE_OK)
 	{
-		RegVal |= 0x80;		//×î¸ßÎ»ÖÃ1£¬Æô¶¯É¨Ãè
+		RegVal |= 0x80;		//Î»1É¨
 		ReCode = WriteReg(DEVIDE_MODE_ADDR,RegVal);
 		if(ReCode == ERROR_CODE_OK)
 		{
-			while(times++ < MaxTimes)		//µÈ´ýÉ¨ÃèÍê³É
+			while(times++ < MaxTimes)		//È´É¨
 			{
 				SysDelay(8);	//8ms
 				ReCode = ReadReg(DEVIDE_MODE_ADDR, &RegVal);
@@ -649,7 +649,7 @@ static unsigned char ReadRawData(unsigned char Freq, unsigned char LineNum, int 
 		for(i=0; i<(ByteNum>>1); i++)
 		{
 			pRevBuffer[i] = (pReadData[i<<1]<<8)+pReadData[(i<<1)+1];
-			//if(pRevBuffer[i] & 0x8000)//ÓÐ·ûºÅÎ»
+			//if(pRevBuffer[i] & 0x8000)//Ð·Î»
 			//{
 			//	pRevBuffer[i] -= 0xffff + 1;
 			//}
@@ -670,8 +670,8 @@ static unsigned char ReadRawData(unsigned char Freq, unsigned char LineNum, int 
 static unsigned char GetTxRxCB(unsigned short StartNodeNo, unsigned short ReadNum, unsigned char *pReadBuffer)
 {
 	unsigned char ReCode = ERROR_CODE_OK;
-	unsigned short usReturnNum = 0;//Ã¿´ÎÒª·µ»ØµÄ¸öÊý
-	unsigned short usTotalReturnNum = 0;//×Ü·µ»Ø¸öÊý
+	unsigned short usReturnNum = 0;//Ã¿ÒªØµÄ¸
+	unsigned short usTotalReturnNum = 0;//Ü·Ø¸
 	unsigned char wBuffer[4];	
 	int i, iReadNum;
 
@@ -690,8 +690,8 @@ static unsigned char GetTxRxCB(unsigned short StartNodeNo, unsigned short ReadNu
 		else
 			usReturnNum = BYTES_PER_TIME;	
 
-		wBuffer[1] = (StartNodeNo+usTotalReturnNum) >>8;//µØÖ·Æ«ÒÆÁ¿¸ß8Î»
-		wBuffer[2] = (StartNodeNo+usTotalReturnNum)&0xff;//µØÖ·Æ«ÒÆÁ¿µÍ8Î»
+		wBuffer[1] = (StartNodeNo+usTotalReturnNum) >>8;//Ö·Æ«8Î»
+		wBuffer[2] = (StartNodeNo+usTotalReturnNum)&0xff;//Ö·Æ«8Î»
 
 		ReCode = WriteReg(REG_CbAddrH, wBuffer[1]);
 		ReCode = WriteReg(REG_CbAddrL, wBuffer[2]);
@@ -709,7 +709,7 @@ static unsigned char GetTxRxCB(unsigned short StartNodeNo, unsigned short ReadNu
 }
 
 //***********************************************
-//»ñÈ¡PanelRows
+//È¡PanelRows
 //***********************************************
 static unsigned char GetPanelRows(unsigned char *pPanelRows)
 {
@@ -717,7 +717,7 @@ static unsigned char GetPanelRows(unsigned char *pPanelRows)
 }
 
 //***********************************************
-//»ñÈ¡PanelCols
+//È¡PanelCols
 //***********************************************
 static unsigned char GetPanelCols(unsigned char *pPanelCols)
 {
@@ -740,7 +740,7 @@ unsigned char FT8736_TestItem_EnterFactoryMode(void)
 {	
 
 	unsigned char ReCode = ERROR_CODE_INVALID_PARAM;
-	int iRedo = 5;	//Èç¹û²»³É¹¦£¬ÖØ¸´½øÈë5´Î
+	int iRedo = 5;	//É¹Ø¸5
 	int i ;
 	SysDelay(150);
 	FTS_TEST_DBG("Enter factory mode...");
@@ -764,7 +764,7 @@ unsigned char FT8736_TestItem_EnterFactoryMode(void)
 	}
 	SysDelay(300);
 
-	if(ReCode == ERROR_CODE_OK)	//½ø¹¤³§Ä£Ê½³É¹¦ºó£¬¾Í¶Á³öÍ¨µÀÊý
+	if(ReCode == ERROR_CODE_OK)	//Ä£Ê½É¹ó£¬¾Í¶Í¨
 	{	
 		ReCode = GetChannelNum();
 	}

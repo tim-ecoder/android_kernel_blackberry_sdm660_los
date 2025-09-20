@@ -151,7 +151,7 @@ static unsigned char FT8607_TestItem_ShortCircuitTest(bool* bTestResult);
 * Output: none
 * Return: Test Result, PASS or FAIL
 ***********************************************************************/
-boolean FT8607_StartTest()
+boolean FT8607_StartTest(void)
 {
 	bool bTestResult = true, bTempResult = 1;
 //	unsigned char ucTempResult = 1;
@@ -164,11 +164,13 @@ boolean FT8607_StartTest()
 	FTS_TEST_DBG("");
 
 //	theDevice.m_cTest_FT8607[ucDevice]->InitFT8607Test();
-	//--------------1. Init part	if(InitTest() < 0)
+	//--------------1. Init part
+	if(InitTest() < 0)
 	{
 		FTS_TEST_DBG("[focal] Failed to init test.");
 		return false;
-	}
+	}
+
 	
 	//--------------2. test item
 	if(0 == g_TestItemNum)
@@ -1483,7 +1485,7 @@ static unsigned char WeakShort_GetAdcData( int AllAdcDataLen, int *pRevBuffer  )
 	int i = 0;
 	int usReturnNum = 0;
 	unsigned char wBuffer[2] = {0};
-	unsigned short usTotalReturnNum = 0;//总返回个数
+	unsigned short usTotalReturnNum = 0;//芊馗
 	int iReadNum = AllAdcDataLen / 342;
 
 	memset( wBuffer, 0, sizeof(wBuffer) );
@@ -1493,7 +1495,7 @@ static unsigned char WeakShort_GetAdcData( int AllAdcDataLen, int *pRevBuffer  )
 		
 	if((AllAdcDataLen % 342) > 0) ++iReadNum;
 
-	ReCode = WriteReg( 0x0F, 1 );  //启动ADC采样
+	ReCode = WriteReg( 0x0F, 1 );  //ADC
 	if( ERROR_CODE_OK != ReCode )
 	{
 		FTS_TEST_DBG("WriteReg failed.");
@@ -1503,7 +1505,7 @@ static unsigned char WeakShort_GetAdcData( int AllAdcDataLen, int *pRevBuffer  )
 	for ( index = 0; index < 50; ++index )
 	{
 		SysDelay( 50 );
-		ReCode = ReadReg( 0x10, &RegMark );  //轮询采样结束标记
+		ReCode = ReadReg( 0x10, &RegMark );  //询
 		if( ERROR_CODE_OK == ReCode && 0 == RegMark )
 			break;
 	}

@@ -1,5 +1,5 @@
 /************************************************************************
-* Copyright (C) 2012-2015, Focaltech Systems (R)£¬All Rights Reserved.
+* Copyright (C) 2012-2015, Focaltech Systems (R)All Rights Reserved.
 *
 * File Name: Test_FT6X36.c
 *
@@ -54,16 +54,16 @@
 
 #define C6208_SCAN_ADDR 0x08
 
-#define C6X36_CHANNEL_NUM	0x0A	//1 Byte	¶ÁÐ´(RW)	TP_Channel_Num		VAÇøÍ¨µÀ¸öÊý ×î´óÖµÎª63
-#define C6X36_KEY_NUM		0x0B	//1 Byte	¶ÁÐ´(RW)	TP_Key_Num		ÐéÄâ°´¼ü¶ÀÁ¢Í¨µÀ¸öÊý ×î´óÖµÎª63
+#define C6X36_CHANNEL_NUM	0x0A	//1 Byte	Ð´(RW)	TP_Channel_Num		VAÍ¨ ÖµÎª63
+#define C6X36_KEY_NUM		0x0B	//1 Byte	Ð´(RW)	TP_Key_Num		â°´Í¨ ÖµÎª63
 
-#define C6X36_CB_ADDR_W 0x32/*0x32*/	//1 Byte	¶ÁÐ´(RW)	CB_addr		ÆÕÍ¨Ä£Ê½CB--µØÖ·		
-#define C6X36_CB_ADDR_R 0x33/*0x32*/	//1 Byte	¶ÁÐ´(RW)	CB_addr		ÆÕÍ¨Ä£Ê½CB--µØÖ·	
-#define C6X36_CB_BUF  0x39/*0x33*/	//1 Byte	Ö»¶Á(RO)	CB_buf		Ò»Í¨µÀ¶ÔÓ¦2×Ö½Ú£¬Òò´Ë³¤¶ÈÊÇ 2*N							
-#define C6X36_RAWDATA_ADDR	0x34/*0x34*/	//1 Byte	¶ÁÐ´(RW)	RawData_addr		Rawdata--µØÖ·							
+#define C6X36_CB_ADDR_W 0x32/*0x32*/	//1 Byte	Ð´(RW)	CB_addr		Í¨Ä£Ê½CB--Ö·		
+#define C6X36_CB_ADDR_R 0x33/*0x32*/	//1 Byte	Ð´(RW)	CB_addr		Í¨Ä£Ê½CB--Ö·	
+#define C6X36_CB_BUF  0x39/*0x33*/	//1 Byte	Ö»(RO)	CB_buf		Ò»Í¨Ó¦2Ö½Ú£Ë³ 2*N							
+#define C6X36_RAWDATA_ADDR	0x34/*0x34*/	//1 Byte	Ð´(RW)	RawData_addr		Rawdata--Ö·							
 #define C6X36_RAWDATA_BUF	0x35
 
-#define C6206_FACTORY_TEST_MODE			0xAE	//0£ºÕý³£¹¤³§Ä£Ê½,1£ºÁ¿²ú²âÊÔ¹¤³§Ä£Ê½1£¨Ê¹ÓÃµ¥¶Ë+0¼¶·ÀË®É¨Ãè£©,2£ºÁ¿²ú²âÊÔ¹¤³§Ä£Ê½2£¨Ê¹ÓÃµ¥¶Ë+²»·ÀË®É¨Ãè£©
+#define C6206_FACTORY_TEST_MODE			0xAE	//0Ä£Ê½,1Ô¹Ä£Ê½1Ê¹Ãµ+0Ë®É¨è£©,2Ô¹Ä£Ê½2Ê¹Ãµ+Ë®É¨è£©
 #define C6206_FACTORY_TEST_STATUS		0xAD
 
 #define MAX_SCAP_CHANNEL_NUM		144//Single Chip 72; Double Chips 144
@@ -142,7 +142,7 @@ static void ShowRawData(void);
 * Output: none
 * Return: Test Result, PASS or FAIL
 ***********************************************************************/
-boolean FT6X36_StartTest()
+boolean FT6X36_StartTest(void)
 {
 	bool bTestResult = true;
 	bool bTempResult = 1;
@@ -343,7 +343,7 @@ int FT6X36_get_test_data(char *pTestData)
 unsigned char FT6X36_TestItem_EnterFactoryMode(void)
 {	
 	unsigned char ReCode = ERROR_CODE_INVALID_PARAM;
-	int iRedo = 5;	//Èç¹û²»³É¹¦£¬ÖØ¸´½øÈë5´Î
+	int iRedo = 5;	//É¹Ø¸5
 	int i ;
 	
 	SysDelay(150);
@@ -372,7 +372,7 @@ unsigned char FT6X36_TestItem_EnterFactoryMode(void)
 		return ReCode;
 	}
 
-	//½ø¹¤³§Ä£Ê½³É¹¦ºó£¬¾Í¶Á³öÍ¨µÀÊý
+	//Ä£Ê½É¹ó£¬¾Í¶Í¨
 	ReCode = GetChannelNum();	
 
 	return ReCode;
@@ -412,17 +412,17 @@ static int StartScan(void)
 {
 	unsigned char RegVal = 0x01;
     	unsigned int times = 0;
-    	const unsigned int MaxTimes = 500/*20*/;	//×î³¤µÈ´ý160ms
+    	const unsigned int MaxTimes = 500/*20*/;	//î³¤È´160ms
     	unsigned char ReCode = ERROR_CODE_COMM_ERROR;      	
     
     	ReCode = ReadReg(C6208_SCAN_ADDR, &RegVal);
     	if(ReCode == ERROR_CODE_OK)
     	{
-    		RegVal = 0x01;		//×î¸ßÎ»ÖÃ1£¬Æô¶¯É¨Ãè
+    		RegVal = 0x01;		//Î»1É¨
     		ReCode = WriteReg(C6208_SCAN_ADDR, RegVal);
     		if(ReCode == ERROR_CODE_OK)
     		{
-    			while(times++ < MaxTimes)		//µÈ´ýÉ¨ÃèÍê³É
+    			while(times++ < MaxTimes)		//È´É¨
     			{
     				SysDelay(8);	//8ms
     				ReCode = ReadReg(C6208_SCAN_ADDR, &RegVal);
@@ -823,7 +823,7 @@ unsigned char FT6X36_TestItem_RawDataTest(bool * bTestResult)
 
 	ReCode = GetRawData();
 	
-	if(ReCode == ERROR_CODE_OK) //¶ÁÈ¡RawDataºÍ¼ÆËãDifferÖµ
+	if(ReCode == ERROR_CODE_OK) //È¡RawDataÍ¼DifferÖµ
 	{
 		FTS_TEST_DBG("\r\n//======= Test Data:  ");
 		ShowRawData();
@@ -831,11 +831,11 @@ unsigned char FT6X36_TestItem_RawDataTest(bool * bTestResult)
 	else
 	{
 		FTS_TEST_DBG("\r\nRawData Test is Error. Failed to get Raw Data!!");
-		btmpresult = false;//ÎÞ·¨»ñÈ¡RawData£¬Ò²ËãÊÇNG
+		btmpresult = false;//Þ·È¡RawDataÒ²NG
 		goto TEST_END;
 	}
 
-	//----------------------------------------------------------ÅÐ¶Ï³¬¹ý·¶Î§µÄrawData
+	//----------------------------------------------------------Ð¶Ï³Î§rawData
 	iNgNum = 0;
 	iMax = m_RawData[0];
 	iMin = m_RawData[0];
@@ -843,8 +843,8 @@ unsigned char FT6X36_TestItem_RawDataTest(bool * bTestResult)
 	
 	for(i = 0; i < g_ScreenSetParam.iChannelsNum + g_ScreenSetParam.iKeyNum; i++)
 	{
-		RawDataMin = g_stCfg_SCap_DetailThreshold.RawDataTest_Min[i];//È¡ÏêÏ¸ãÐÖµ
-		RawDataMax = g_stCfg_SCap_DetailThreshold.RawDataTest_Max[i];//È¡ÏêÏ¸ãÐÖµ
+		RawDataMin = g_stCfg_SCap_DetailThreshold.RawDataTest_Min[i];//È¡Ï¸Öµ
+		RawDataMax = g_stCfg_SCap_DetailThreshold.RawDataTest_Max[i];//È¡Ï¸Öµ
 		if(m_RawData[i] < RawDataMin || m_RawData[i] > RawDataMax)
 		{
 			btmpresult = false;
@@ -863,7 +863,7 @@ unsigned char FT6X36_TestItem_RawDataTest(bool * bTestResult)
 			iNgNum++;
 		}
 
-		///¼ÆËã×î´ó×îÐ¡Æ½¾ùÖµ
+		///Ð¡Æ½Öµ
 		iAvg += m_RawData[i];
 		if(iMax < m_RawData[i])iMax = m_RawData[i];
 		if(iMin > m_RawData[i])iMin = m_RawData[i];
@@ -873,7 +873,7 @@ unsigned char FT6X36_TestItem_RawDataTest(bool * bTestResult)
 	iAvg /= g_ScreenSetParam.iChannelsNum + g_ScreenSetParam.iKeyNum;	
 	FTS_TEST_DBG("\r\n\r\n// Max Raw Value: %d, Min Raw Value: %d, Deviation Value: %d, Average Value: %d", iMax, iMin, iMax - iMin, iAvg);
 	
-	////>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>ÊÕ¼¯²âÊÔÊý¾Ý£¬´æÈëCSVÎÄ¼þ
+	////>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Õ¼Ý£CSVÄ¼
 
 	Save_Test_Data(m_RawData, 0, 1, g_ScreenSetParam.iChannelsNum + g_ScreenSetParam.iKeyNum, 1);	
 
@@ -944,7 +944,7 @@ unsigned char FT6X36_TestItem_CbTest(bool * bTestResult)
 		FTS_TEST_DBG("\r\n\r\nGet Proof_NoWaterProof CB Data...");
 
 		
-		//·ÀË®CB
+		//Ë®CB
 		I2C_wBuffer[0] = 0x39;
 		ReCode = WriteReg( 0x33, 0 );
 		ReCode = Comm_Base_IIC_IO(I2C_wBuffer, 1, pReadData, readlen * 2 );
@@ -953,7 +953,7 @@ unsigned char FT6X36_TestItem_CbTest(bool * bTestResult)
 		{			
 			m_TempCbData[i] = (unsigned short)(pReadData[i*2] << 8 | pReadData[i*2+1]);
 
-			/*for(int j = 0; j < 2; j++)//Èô»ñÈ¡ÖµÎª0£¬ÔÙÖØ¸´»ñÈ¡3´Î
+			/*for(int j = 0; j < 2; j++)//È¡ÖµÎª0Ø¸È¡3
 			{
 				if(m_TempCbData[i] == 0)
 				{
@@ -986,7 +986,7 @@ unsigned char FT6X36_TestItem_CbTest(bool * bTestResult)
 	}
 	FTS_TEST_DBG("\r\n\r");
 
-	////////////////////////////µ¥¶Ë·ÀË®
+	////////////////////////////Ë·Ë®
 	FTS_TEST_DBG("Proof_Level0 CB Test...\r");
 	for(i = 0; i < 3; i++)
 	{
@@ -1006,7 +1006,7 @@ unsigned char FT6X36_TestItem_CbTest(bool * bTestResult)
 
 		//BYTE pReadData[300] = {0};
 		//unsigned char I2C_wBuffer[1];
-		//·ÀË®CB
+		//Ë®CB
 		I2C_wBuffer[0] = 0x39;
 		ReCode = WriteReg( 0x33, 0 );
 		ReCode = Comm_Base_IIC_IO(I2C_wBuffer, 1, pReadData, readlen * 2 );
@@ -1016,7 +1016,7 @@ unsigned char FT6X36_TestItem_CbTest(bool * bTestResult)
 			m_CbData[i] = (unsigned short)(pReadData[i*2] << 8 | pReadData[i*2+1]);
 
 
-			/*for(int j = 0; j < 2; j++)//Èô»ñÈ¡ÖµÎª0£¬ÔÙÖØ¸´»ñÈ¡3´Î
+			/*for(int j = 0; j < 2; j++)//È¡ÖµÎª0Ø¸È¡3
 			{
 				if(m_CbData[i] == 0)
 				{
@@ -1032,7 +1032,7 @@ unsigned char FT6X36_TestItem_CbTest(bool * bTestResult)
 
 		ReCode = WriteReg( C6206_FACTORY_TEST_MODE, chOldMode );
 
-		//----------------------------------------------------------ÅÐ¶ÏÊÇ·ñ³¬³öãÐÖµ
+		//----------------------------------------------------------Ð¶Ç·ñ³¬³Öµ
 		iNgNum = 0;
 		iMax = m_TempCbData[0];
 		iMin = m_TempCbData[0];
@@ -1041,8 +1041,8 @@ unsigned char FT6X36_TestItem_CbTest(bool * bTestResult)
 		for(i = 0; i < g_ScreenSetParam.iChannelsNum + g_ScreenSetParam.iKeyNum; i++)
 		{
 
-			iCbMin = g_stCfg_SCap_DetailThreshold.CbTest_Min[i];//È¡ÏêÏ¸ãÐÖµ
-			iCbMax = g_stCfg_SCap_DetailThreshold.CbTest_Max[i];//È¡ÏêÏ¸ãÐÖµ
+			iCbMin = g_stCfg_SCap_DetailThreshold.CbTest_Min[i];//È¡Ï¸Öµ
+			iCbMax = g_stCfg_SCap_DetailThreshold.CbTest_Max[i];//È¡Ï¸Öµ
 
 			if(m_TempCbData[i] < iCbMin || m_TempCbData[i] > iCbMax)
 			{
@@ -1063,7 +1063,7 @@ unsigned char FT6X36_TestItem_CbTest(bool * bTestResult)
 				iNgNum++;
 			}
 
-			///¼ÆËã×î´ó×îÐ¡Æ½¾ùÖµ
+			///Ð¡Æ½Öµ
 			iAvg += m_TempCbData[i];
 			if(iMax < m_TempCbData[i])iMax = m_TempCbData[i];
 			if(iMin > m_TempCbData[i])iMin = m_TempCbData[i];
@@ -1084,12 +1084,12 @@ unsigned char FT6X36_TestItem_CbTest(bool * bTestResult)
 			* bTestResult = 0;
 		}
 	}
-	////>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>ÊÕ¼¯²âÊÔÊý¾Ý£¬´æÈëCSVÎÄ¼þ
+	////>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Õ¼Ý£CSVÄ¼
 	
 	Save_Test_Data(m_TempCbData, 0, 1, g_ScreenSetParam.iChannelsNum + g_ScreenSetParam.iKeyNum, 1);
 	
-	////<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<ÊÕ¼¯²âÊÔÊý¾Ý£¬´æÈëCSVÎÄ¼þ
-	//GetCiDataMsg();//ÊÕ¼¯Ci Data£¬´æÈëCSVÎÄ¼þ
+	////<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Õ¼Ý£CSVÄ¼
+	//GetCiDataMsg();//Õ¼Ci DataCSVÄ¼
 	//Save_Test_Data(m_CbData, 0, 1, g_ScreenSetParam.iChannelsNum + g_ScreenSetParam.iKeyNum, 2);
 
 	return ReCode;
@@ -1109,7 +1109,7 @@ unsigned char FT6X36_TestItem_DeltaCbTest(unsigned char * bTestResult)
 	int readlen = g_ScreenSetParam.iChannelsNum + g_ScreenSetParam.iKeyNum;
 	int i=0;
 
-	////////////×î´óDelta_CiºÍ×îÐ¡Delta_Ci²îÖµÐ¡ÓÚÔ¤ÉèÖµ
+	////////////Delta_CiÐ¡Delta_CiÖµÐ¡Ô¤Öµ
 	int Delta_Ci_Differ = g_stCfg_FT6X36_BasicThreshold.DeltaCbTest_Deviation_S1;
 	int Delta_Ci_Differ_S2 = g_stCfg_FT6X36_BasicThreshold.DeltaCbTest_Deviation_S2;
 	int Delta_Ci_Differ_S3 = g_stCfg_FT6X36_BasicThreshold.DeltaCbTest_Deviation_S3;
@@ -1194,7 +1194,7 @@ unsigned char FT6X36_TestItem_DeltaCbTest(unsigned char * bTestResult)
 	}
 	FTS_TEST_DBG("\r\n\r");
 	
-	////////////×î´óDelta_CiºÍ×îÐ¡Delta_Ci²îÖµÐ¡ÓÚÔ¤ÉèÖµ
+	////////////Delta_CiÐ¡Delta_CiÖµÐ¡Ô¤Öµ
 	Delta_Ci_Differ = g_stCfg_FT6X36_BasicThreshold.DeltaCbTest_Deviation_S1;
 	Delta_Ci_Differ_S2 = g_stCfg_FT6X36_BasicThreshold.DeltaCbTest_Deviation_S2;
 	Delta_Ci_Differ_S3 = g_stCfg_FT6X36_BasicThreshold.DeltaCbTest_Deviation_S3;
@@ -1554,7 +1554,7 @@ unsigned char FT6X36_TestItem_DeltaCbTest(unsigned char * bTestResult)
 		FTS_TEST_DBG("\r\nSort6: %d, ", Sort6Max - Sort6Min);		
 	}
 
-	/////////////////////×î´óDelta_Ci²»ÄÜ³¬¹ýÔ¤ÉèÖµ
+	/////////////////////Delta_CiÜ³Ô¤Öµ
 
 	Delta_Min = Delta_Max = focal_abs(m_DeltaCb_DifferData[0]);
 	for(i=1; i < g_ScreenSetParam.iChannelsNum/*readlen*/; i++)
@@ -1618,15 +1618,15 @@ unsigned char FT6X36_TestItem_DeltaCbTest(unsigned char * bTestResult)
 		FTS_TEST_DBG("\r\n\r\n//Delta CB Test is NG!\r");		
 		* bTestResult = 0;
 	}
-	////>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>ÊÕ¼¯²âÊÔÊý¾Ý£¬´æÈëCSVÎÄ¼þ
+	////>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Õ¼Ý£CSVÄ¼
 	
 	Save_Test_Data(m_DeltaCbData, 0, 1, g_ScreenSetParam.iChannelsNum+g_ScreenSetParam.iKeyNum, 1);
 	
-	////>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>ÊÕ¼¯²âÊÔÊý¾Ý£¬´æÈëCSVÎÄ¼þ
+	////>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Õ¼Ý£CSVÄ¼
 	
 	Save_Test_Data(m_DeltaCb_DifferData, 0, 1, g_ScreenSetParam.iChannelsNum+g_ScreenSetParam.iKeyNum, 2);
 
-	//GetDeltaCiDataMsg();//ÊÕ¼¯Delta Ci Data£¬´æÈëCSVÎÄ¼þ
+	//GetDeltaCiDataMsg();//Õ¼Delta Ci DataCSVÄ¼
 	return 0;
 }
 
@@ -1678,7 +1678,7 @@ unsigned char FT6X36_TestItem_ChannelsDeviationTest(unsigned char * bTestResult)
 	
 	FTS_TEST_DBG("\r\n\r\n==============================Test Item: -------- Channels Deviation Test ");
 	
-	/////////////////////////ÏÔÊ¾Delta Ci Differ
+	/////////////////////////Ê¾Delta Ci Differ
 	
 	for(i=0; i < g_ScreenSetParam.iChannelsNum; i++)
 	{
@@ -1754,10 +1754,10 @@ unsigned char FT6X36_TestItem_ChannelsDeviationTest(unsigned char * bTestResult)
 			}
 			else
 			{
-				if(Sort1LastNum + 1 == i)//ÏàÁÚÍ¨µÀ
+				if(Sort1LastNum + 1 == i)//Í¨
 				{
 					//if((Sort1LastNum == g_ScreenSetParam.iChannelsNum/2 - 1) && (i == g_ScreenSetParam.iChannelsNum/2))
-					//{//×ÜÍ¨µÀ·ÖÁ½²¿·Ö£¬Ç°°ë²¿·ÖµÄ½áÎ²²»Óëºó°ë²¿·ÖµÄ¿ªÊ¼Ïà±È½Ï£¬×¢ÒâÍ¨µÀ´Ó0¿ªÊ¼£¬Ç°°ë²¿·ÖµÄ½áÎ²ÊÇg_ScreenSetParam.iChannelsNum/2 - 1
+					//{//Í¨Ö£Ç°ë²¿ÖµÄ½Î²ë²¿ÖµÄ¿Ê¼È½Ï£×¢Í¨0Ê¼Ç°ë²¿ÖµÄ½Î²g_ScreenSetParam.iChannelsNum/2 - 1
 					//}
 											
 					if( Sort1LastNum <= g_ScreenSetParam.iChannelsNum/2 - 1 && i >= g_ScreenSetParam.iChannelsNum/2 )
@@ -1819,7 +1819,7 @@ unsigned char FT6X36_TestItem_ChannelsDeviationTest(unsigned char * bTestResult)
 			}
 			else
 			{
-				if(Sort2LastNum + 1 == i)//ÏàÁÚÍ¨µÀ
+				if(Sort2LastNum + 1 == i)//Í¨
 				{
 					if( Sort2LastNum <= g_ScreenSetParam.iChannelsNum/2 - 1 && i >= g_ScreenSetParam.iChannelsNum/2 )
 					{
@@ -1877,7 +1877,7 @@ unsigned char FT6X36_TestItem_ChannelsDeviationTest(unsigned char * bTestResult)
 			}
 			else
 			{
-				if(Sort3LastNum + 1 == i)//ÏàÁÚÍ¨µÀ
+				if(Sort3LastNum + 1 == i)//Í¨
 				{
 					if( Sort3LastNum <= g_ScreenSetParam.iChannelsNum/2 - 1 && i >= g_ScreenSetParam.iChannelsNum/2 )
 					{
@@ -1934,7 +1934,7 @@ unsigned char FT6X36_TestItem_ChannelsDeviationTest(unsigned char * bTestResult)
 			}
 			else
 			{
-				if(Sort4LastNum + 1 == i)//ÏàÁÚÍ¨µÀ
+				if(Sort4LastNum + 1 == i)//Í¨
 				{
 					if( Sort4LastNum <= g_ScreenSetParam.iChannelsNum/2 - 1 && i >= g_ScreenSetParam.iChannelsNum/2 )
 					{
@@ -1991,7 +1991,7 @@ unsigned char FT6X36_TestItem_ChannelsDeviationTest(unsigned char * bTestResult)
 			}
 			else
 			{
-				if(Sort5LastNum + 1 == i)//ÏàÁÚÍ¨µÀ
+				if(Sort5LastNum + 1 == i)//Í¨
 				{
 					if( Sort5LastNum <= g_ScreenSetParam.iChannelsNum/2 - 1 && i >= g_ScreenSetParam.iChannelsNum/2 )
 					{
@@ -2049,7 +2049,7 @@ unsigned char FT6X36_TestItem_ChannelsDeviationTest(unsigned char * bTestResult)
 			}
 			else
 			{
-				if(Sort6LastNum + 1 == i)//ÏàÁÚÍ¨µÀ
+				if(Sort6LastNum + 1 == i)//Í¨
 				{
 					if( Sort6LastNum <= g_ScreenSetParam.iChannelsNum/2 - 1 && i >= g_ScreenSetParam.iChannelsNum/2 )
 					{
@@ -2225,7 +2225,7 @@ unsigned char FT6X36_TestItem_TwoSidesDeviationTest(unsigned char * bTestResult)
 	
 	FTS_TEST_DBG("\r\n\r\n==============================Test Item: -------- Two Sides Deviation Test ");
 	
-	/////////////////////////ÏÔÊ¾Delta Ci Differ
+	/////////////////////////Ê¾Delta Ci Differ
 	
 	for(i=0; i < g_ScreenSetParam.iChannelsNum; i++)
 	{
