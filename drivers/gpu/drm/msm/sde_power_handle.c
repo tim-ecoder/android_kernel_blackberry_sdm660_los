@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -550,13 +550,12 @@ static int sde_power_reg_bus_update(u32 reg_bus_hdl, u32 usecase_ndx)
 }
 #else
 static int sde_power_data_bus_parse(struct platform_device *pdev,
-	struct sde_power_data_bus_handle *pdbus)
+	struct sde_power_handle *phandle)
 {
 	return 0;
 }
 
-static void sde_power_data_bus_unregister(
-		struct sde_power_data_bus_handle *pdbus)
+static void sde_power_data_bus_unregister(u32 reg_bus_hdl)
 {
 }
 

@@ -352,7 +352,6 @@ static int panel_simple_remove(struct device *dev)
 	drm_panel_remove(&panel->base);
 
 	panel_simple_disable(&panel->base);
-	panel_simple_unprepare(&panel->base);
 
 	if (panel->ddc)
 		put_device(&panel->ddc->dev);
@@ -368,7 +367,6 @@ static void panel_simple_shutdown(struct device *dev)
 	struct panel_simple *panel = dev_get_drvdata(dev);
 
 	panel_simple_disable(&panel->base);
-	panel_simple_unprepare(&panel->base);
 }
 
 static const struct drm_display_mode ampire_am800480r3tmqwa1h_mode = {
@@ -920,7 +918,7 @@ static const struct drm_display_mode lg_lb070wv8_mode = {
 static const struct panel_desc lg_lb070wv8 = {
 	.modes = &lg_lb070wv8_mode,
 	.num_modes = 1,
-	.bpc = 8,
+	.bpc = 16,
 	.size = {
 		.width = 151,
 		.height = 91,
@@ -1389,14 +1387,7 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
 
-	err = mipi_dsi_attach(dsi);
-	if (err) {
-		struct panel_simple *panel = dev_get_drvdata(&dsi->dev);
-
-		drm_panel_remove(&panel->base);
-	}
-
-	return err;
+	return mipi_dsi_attach(dsi);
 }
 
 static int panel_simple_dsi_remove(struct mipi_dsi_device *dsi)

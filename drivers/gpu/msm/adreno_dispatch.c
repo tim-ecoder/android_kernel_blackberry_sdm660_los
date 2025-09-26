@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -677,7 +677,7 @@ static int sendcmd(struct adreno_device *adreno_dev,
 	 * then set up the timer.  If this misses, then preemption is indeed a
 	 * thing and the timer will be set up in due time
 	 */
-	if (adreno_in_preempt_state(adreno_dev, ADRENO_PREEMPT_NONE)) {
+	if (!adreno_in_preempt_state(adreno_dev, ADRENO_PREEMPT_NONE)) {
 		if (drawqueue_is_current(dispatch_q))
 			mod_timer(&dispatcher->timer, dispatch_q->expires);
 	}
@@ -1210,16 +1210,7 @@ static inline int _wait_for_room_in_context_queue(
 		spin_lock(&drawctxt->lock);
 		trace_adreno_drawctxt_wake(drawctxt);
 
-		/*
-		 * Account for the possibility that the context got invalidated
-		 * while we were sleeping
-		 */
-
-		if (ret > 0) {
-			ret = _check_context_state(&drawctxt->base);
-			if (ret)
-				return ret;
-		} else
+		if (ret <= 0)
 			return (ret == 0) ? -ETIMEDOUT : (int) ret;
 	}
 
@@ -1234,7 +1225,15 @@ static unsigned int _check_context_state_to_queue_cmds(
 	if (ret)
 		return ret;
 
-	return _wait_for_room_in_context_queue(drawctxt);
+	ret = _wait_for_room_in_context_queue(drawctxt);
+	if (ret)
+		return ret;
+
+	/*
+	 * Account for the possiblity that the context got invalidated
+	 * while we were sleeping
+	 */
+	return _check_context_state(&drawctxt->base);
 }
 
 static void _queue_drawobj(struct adreno_context *drawctxt,
@@ -1405,22 +1404,6 @@ int adreno_dispatcher_queue_cmds(struct kgsl_device_private *dev_priv,
 	}
 
 	user_ts = *timestamp;
-
-	/*
-	 * If there is only one drawobj in the array and it is of
-	 * type SYNCOBJ_TYPE, skip comparing user_ts as it can be 0
-	 */
-	if (!(count == 1 && drawobj[0]->type == SYNCOBJ_TYPE) &&
-		(drawctxt->base.flags & KGSL_CONTEXT_USER_GENERATED_TS)) {
-		/*
-		 * User specified timestamps need to be greater than the last
-		 * issued timestamp in the context
-		 */
-		if (timestamp_cmp(drawctxt->timestamp, user_ts) >= 0) {
-			spin_unlock(&drawctxt->lock);
-			return -ERANGE;
-		}
-	}
 
 	for (i = 0; i < count; i++) {
 
@@ -1696,7 +1679,7 @@ static inline const char *_kgsl_context_comm(struct kgsl_context *context)
 #define pr_fault(_d, _c, fmt, args...) \
 		dev_err((_d)->dev, "%s[%d]: " fmt, \
 		_kgsl_context_comm((_c)->context), \
-		pid_nr((_c)->context->proc_priv->pid), ##args)
+		(_c)->context->proc_priv->pid, ##args)
 
 
 static void adreno_fault_header(struct kgsl_device *device,
@@ -1727,9 +1710,8 @@ static void adreno_fault_header(struct kgsl_device *device,
 			ib2base, ib2sz, drawctxt->rb->id);
 
 		pr_fault(device, drawobj,
-			"gpu fault ctx %d ctx_type %s ts %d status %8.8X rb %4.4x/%4.4x ib1 %16.16llX/%4.4x ib2 %16.16llX/%4.4x\n",
-			drawobj->context->id, get_api_type_str(drawctxt->type),
-			drawobj->timestamp, status,
+			"gpu fault ctx %d ts %d status %8.8X rb %4.4x/%4.4x ib1 %16.16llX/%4.4x ib2 %16.16llX/%4.4x\n",
+			drawobj->context->id, drawobj->timestamp, status,
 			rptr, wptr, ib1base, ib1sz, ib2base, ib2sz);
 
 		if (rb != NULL)
@@ -1850,8 +1832,7 @@ static void process_cmdobj_fault(struct kgsl_device *device,
 	 * because we won't see this cmdobj again
 	 */
 
-	if ((fault & ADRENO_TIMEOUT_FAULT) ||
-				(fault & ADRENO_CTX_DETATCH_TIMEOUT_FAULT))
+	if (fault & ADRENO_TIMEOUT_FAULT)
 		bitmap_zero(&cmdobj->fault_policy, BITS_PER_LONG);
 
 	/*
@@ -2832,16 +2813,6 @@ int adreno_dispatcher_init(struct adreno_device *adreno_dev)
 		&device->dev->kobj, "dispatch");
 
 	return ret;
-}
-
-void adreno_dispatcher_halt(struct kgsl_device *device)
-{
-	adreno_get_gpu_halt(ADRENO_DEVICE(device));
-}
-
-void adreno_dispatcher_unhalt(struct kgsl_device *device)
-{
-	adreno_put_gpu_halt(ADRENO_DEVICE(device));
 }
 
 /*

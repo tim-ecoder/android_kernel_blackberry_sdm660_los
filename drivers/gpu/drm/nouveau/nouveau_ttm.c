@@ -107,10 +107,10 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func nouveau_vram_manager = {
-	nouveau_vram_manager_init,
-	nouveau_vram_manager_fini,
-	nouveau_vram_manager_new,
-	nouveau_vram_manager_del,
+	.init = nouveau_vram_manager_init,
+	.takedown = nouveau_vram_manager_fini,
+	.get_node = nouveau_vram_manager_new,
+	.put_node = nouveau_vram_manager_del,
 };
 
 static int
@@ -183,11 +183,11 @@ nouveau_gart_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 }
 
 const struct ttm_mem_type_manager_func nouveau_gart_manager = {
-	nouveau_gart_manager_init,
-	nouveau_gart_manager_fini,
-	nouveau_gart_manager_new,
-	nouveau_gart_manager_del,
-	nouveau_gart_manager_debug
+	.init = nouveau_gart_manager_init,
+	.takedown = nouveau_gart_manager_fini,
+	.get_node = nouveau_gart_manager_new,
+	.put_node = nouveau_gart_manager_del,
+	.debug = nouveau_gart_manager_debug
 };
 
 /*XXX*/
@@ -256,11 +256,11 @@ nv04_gart_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 }
 
 const struct ttm_mem_type_manager_func nv04_gart_manager = {
-	nv04_gart_manager_init,
-	nv04_gart_manager_fini,
-	nv04_gart_manager_new,
-	nv04_gart_manager_del,
-	nv04_gart_manager_debug
+	.init = nv04_gart_manager_init,
+	.takedown = nv04_gart_manager_fini,
+	.get_node = nv04_gart_manager_new,
+	.put_node = nv04_gart_manager_del,
+	.debug = nv04_gart_manager_debug
 };
 
 int
@@ -397,9 +397,6 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	/* VRAM init */
 	drm->gem.vram_available = drm->device.info.ram_user;
 
-	arch_io_reserve_memtype_wc(device->func->resource_addr(device, 1),
-				   device->func->resource_size(device, 1));
-
 	ret = ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_VRAM,
 			      drm->gem.vram_available >> PAGE_SHIFT);
 	if (ret) {
@@ -432,8 +429,6 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 void
 nouveau_ttm_fini(struct nouveau_drm *drm)
 {
-	struct nvkm_device *device = nvxx_device(&drm->device);
-
 	ttm_bo_clean_mm(&drm->ttm.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&drm->ttm.bdev, TTM_PL_TT);
 
@@ -443,7 +438,4 @@ nouveau_ttm_fini(struct nouveau_drm *drm)
 
 	arch_phys_wc_del(drm->ttm.mtrr);
 	drm->ttm.mtrr = 0;
-	arch_io_free_memtype_wc(device->func->resource_addr(device, 1),
-				device->func->resource_size(device, 1));
-
 }

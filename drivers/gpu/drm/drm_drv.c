@@ -312,7 +312,7 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	ret = drm_debugfs_init(minor, minor->index, drm_debugfs_root);
 	if (ret) {
 		DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
-		goto err_debugfs;
+		return ret;
 	}
 
 	ret = device_add(minor->kdev);
@@ -471,7 +471,7 @@ void drm_unplug_dev(struct drm_device *dev)
 
 	drm_device_set_unplugged(dev);
 
-	if (dev->open_count == 0) {
+	if (local_read(&dev->open_count) == 0) {
 		drm_put_dev(dev);
 	}
 	mutex_unlock(&drm_global_mutex);

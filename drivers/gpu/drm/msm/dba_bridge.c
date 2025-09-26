@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -16,7 +16,6 @@
 #include "drm_edid.h"
 #include "sde_kms.h"
 #include "dba_bridge.h"
-#include "sde/sde_recovery_manager.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt)	"dba_bridge:[%s] " fmt, __func__
@@ -37,7 +36,6 @@
  * @num_of_input_lanes: Number of input lanes in case of DSI/LVDS
  * @pluggable:          If it's pluggable
  * @panel_count:        Number of panels attached to this display
- * @client_info:        bridge chip specific information for recovery manager
  */
 struct dba_bridge {
 	struct drm_bridge base;
@@ -53,18 +51,12 @@ struct dba_bridge {
 	u32 num_of_input_lanes;
 	bool pluggable;
 	u32 panel_count;
-	bool cont_splash_enabled;
-	struct recovery_client_info client_info;
 };
 #define to_dba_bridge(x)     container_of((x), struct dba_bridge, base)
-
-static int _dba_bridge_recovery_callback(int err_code,
-	struct recovery_client_info *client_info);
 
 static void _dba_bridge_cb(void *data, enum msm_dba_callback_event event)
 {
 	struct dba_bridge *d_bridge = data;
-	int chip_err;
 
 	if (!d_bridge) {
 		SDE_ERROR("Invalid data\n");
@@ -80,12 +72,6 @@ static void _dba_bridge_cb(void *data, enum msm_dba_callback_event event)
 	case MSM_DBA_CB_HPD_DISCONNECT:
 		DRM_DEBUG("HPD DISCONNECT\n");
 		break;
-	case MSM_DBA_CB_DDC_I2C_ERROR:
-	case MSM_DBA_CB_DDC_TIMEOUT:
-		DRM_DEBUG("DDC FAILURE\n");
-		chip_err = DBA_BRIDGE_CRITICAL_ERR + d_bridge->id;
-		sde_recovery_set_events(chip_err);
-		break;
 	default:
 		DRM_DEBUG("event:%d is not supported\n", event);
 		break;
@@ -96,7 +82,6 @@ static int _dba_bridge_attach(struct drm_bridge *bridge)
 {
 	struct dba_bridge *d_bridge = to_dba_bridge(bridge);
 	struct msm_dba_reg_info info;
-	struct recovery_client_info *client_info = &d_bridge->client_info;
 	int ret = 0;
 
 	if (!bridge) {
@@ -129,25 +114,6 @@ static int _dba_bridge_attach(struct drm_bridge *bridge)
 		goto error;
 	}
 
-	snprintf(client_info->name, MAX_REC_NAME_LEN, "%s_%d",
-		d_bridge->chip_name, d_bridge->id);
-
-	client_info->recovery_cb = _dba_bridge_recovery_callback;
-
-	/* Identify individual chip by different error codes */
-	client_info->err_supported[0].reported_err_code =
-				DBA_BRIDGE_CRITICAL_ERR + d_bridge->id;
-	client_info->err_supported[0].pre_err_code = 0;
-	client_info->err_supported[0].post_err_code = 0;
-	client_info->no_of_err = 1;
-	/* bridge chip context */
-	client_info->pdata = d_bridge;
-
-	ret = sde_recovery_client_register(client_info);
-	if (ret)
-		SDE_ERROR("%s recovery mgr register failed %d\n",
-							__func__, ret);
-
 	DRM_INFO("client:%s bridge:[%s:%d] attached\n",
 		d_bridge->client_name, d_bridge->chip_name, d_bridge->id);
 
@@ -157,18 +123,10 @@ error:
 
 static void _dba_bridge_pre_enable(struct drm_bridge *bridge)
 {
-	struct dba_bridge *d_bridge;
-
 	if (!bridge) {
 		SDE_ERROR("Invalid params\n");
 		return;
 	}
-
-	d_bridge = to_dba_bridge(bridge);
-
-	/* Skip power_on calling when splash is enabled in bootloader. */
-	if ((d_bridge->ops.power_on) && (!d_bridge->cont_splash_enabled))
-		d_bridge->ops.power_on(d_bridge->dba_ctx, true, 0);
 }
 
 static void _dba_bridge_enable(struct drm_bridge *bridge)
@@ -228,8 +186,7 @@ static void _dba_bridge_enable(struct drm_bridge *bridge)
 			video_cfg.scaninfo, video_cfg.ar, video_cfg.vic);
 	}
 
-	/* Skip video_on calling if splash is enabled in bootloader. */
-	if ((d_bridge->ops.video_on) && (!d_bridge->cont_splash_enabled)) {
+	if (d_bridge->ops.video_on) {
 		rc = d_bridge->ops.video_on(d_bridge->dba_ctx, true,
 						&video_cfg, 0);
 		if (rc)
@@ -248,8 +205,7 @@ static void _dba_bridge_disable(struct drm_bridge *bridge)
 	}
 
 	if (d_bridge->ops.video_on) {
-		rc = d_bridge->ops.video_on(d_bridge->dba_ctx,
-				false, NULL, 0);
+		rc = d_bridge->ops.video_on(d_bridge->dba_ctx, false, NULL, 0);
 		if (rc)
 			SDE_ERROR("video off failed ret=%d\n", rc);
 	}
@@ -257,60 +213,10 @@ static void _dba_bridge_disable(struct drm_bridge *bridge)
 
 static void _dba_bridge_post_disable(struct drm_bridge *bridge)
 {
-	int rc = 0;
-	struct dba_bridge *d_bridge = to_dba_bridge(bridge);
-
 	if (!bridge) {
 		SDE_ERROR("Invalid params\n");
 		return;
 	}
-
-	if (d_bridge->cont_splash_enabled)
-		d_bridge->cont_splash_enabled = false;
-
-	if (d_bridge->ops.power_on) {
-		rc = d_bridge->ops.power_on(d_bridge->dba_ctx, false, 0);
-		if (rc)
-			SDE_ERROR("power off failed ret=%d\n", rc);
-	}
-}
-
-static int _dba_bridge_recovery_callback(int err_code,
-	struct recovery_client_info *client_info)
-{
-	int rc = 0;
-	struct dba_bridge *d_bridge;
-
-	if (!client_info) {
-		SDE_ERROR("Invalid client info\n");
-		rc = -EINVAL;
-		return rc;
-	}
-
-	d_bridge = client_info->pdata;
-
-	err_code = err_code - d_bridge->id;
-
-	switch (err_code) {
-	case DBA_BRIDGE_CRITICAL_ERR:
-		SDE_DEBUG("%s critical bridge chip error\n", __func__);
-
-		/* Power OFF */
-		_dba_bridge_disable(&d_bridge->base);
-		_dba_bridge_post_disable(&d_bridge->base);
-
-		/* settle power rails */
-		msleep(100);
-
-		/* Power On */
-		_dba_bridge_pre_enable(&d_bridge->base);
-		_dba_bridge_enable(&d_bridge->base);
-
-		break;
-	default:
-		SDE_ERROR("%s error %d undefined\n", __func__, err_code);
-	}
-	return rc;
 }
 
 static void _dba_bridge_mode_set(struct drm_bridge *bridge,
@@ -402,7 +308,6 @@ struct drm_bridge *dba_bridge_init(struct drm_device *dev,
 	bridge->panel_count = data->panel_count;
 	bridge->base.funcs = &_dba_bridge_ops;
 	bridge->base.encoder = encoder;
-	bridge->cont_splash_enabled = data->cont_splash_enabled;
 
 	rc = drm_bridge_attach(dev, &bridge->base);
 	if (rc) {
@@ -418,10 +323,7 @@ struct drm_bridge *dba_bridge_init(struct drm_device *dev,
 		encoder->bridge = &bridge->base;
 	}
 
-	/* If early splash has enabled bridge chip in bootloader,
-	 * below call should be skipped.
-	 */
-	if (!bridge->pluggable && !bridge->cont_splash_enabled) {
+	if (!bridge->pluggable) {
 		if (bridge->ops.power_on)
 			bridge->ops.power_on(bridge->dba_ctx, true, 0);
 		if (bridge->ops.check_hpd)
@@ -442,9 +344,6 @@ void dba_bridge_cleanup(struct drm_bridge *bridge)
 
 	if (!bridge)
 		return;
-
-	sde_recovery_client_unregister(d_bridge->client_info.handle);
-	d_bridge->client_info.handle = NULL;
 
 	if (IS_ENABLED(CONFIG_MSM_DBA)) {
 		if (!IS_ERR_OR_NULL(d_bridge->dba_ctx))

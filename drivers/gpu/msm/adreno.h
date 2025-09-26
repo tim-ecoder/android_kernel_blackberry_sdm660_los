@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2018,2020 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -185,7 +185,6 @@ enum adreno_gpurev {
 #define ADRENO_TIMEOUT_FAULT BIT(2)
 #define ADRENO_IOMMU_PAGE_FAULT BIT(3)
 #define ADRENO_PREEMPT_FAULT BIT(4)
-#define ADRENO_CTX_DETATCH_TIMEOUT_FAULT BIT(5)
 
 #define ADRENO_SPTP_PC_CTRL 0
 #define ADRENO_PPD_CTRL     1
@@ -794,7 +793,6 @@ struct adreno_gpudev {
 	void (*enable_64bit)(struct adreno_device *);
 	void (*clk_set_options)(struct adreno_device *,
 				const char *, struct clk *, bool on);
-	void (*zap_shader_unload)(struct adreno_device *);
 };
 
 /**
@@ -941,8 +939,6 @@ int adreno_efuse_map(struct adreno_device *adreno_dev);
 int adreno_efuse_read_u32(struct adreno_device *adreno_dev, unsigned int offset,
 		unsigned int *val);
 void adreno_efuse_unmap(struct adreno_device *adreno_dev);
-
-u32 adreno_get_ucode_version(const u32 *data);
 
 #define ADRENO_TARGET(_name, _id) \
 static inline int adreno_is_##_name(struct adreno_device *adreno_dev) \

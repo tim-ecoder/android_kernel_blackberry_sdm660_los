@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2018,2020 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,7 +31,6 @@
 #include "adreno_a5xx_packets.h"
 
 static int zap_ucode_loaded;
-static void *zap_handle_ptr;
 static int critical_packet_constructed;
 
 static struct kgsl_memdesc crit_pkts;
@@ -1382,13 +1381,13 @@ static int _execute_reg_sequence(struct adreno_device *adreno_dev,
 
 	/* todo double check the reg writes */
 	while ((cur - opcode) < length) {
-		if (cur[0] == 1 && (length - (cur - opcode) >= 4)) {
+		if (cur[0] == 1 && ((cur + 4) - opcode) <= length) {
 			/* Write a 32 bit value to a 64 bit reg */
 			reg = cur[2];
 			reg = (reg << 32) | cur[1];
 			kgsl_regwrite(KGSL_DEVICE(adreno_dev), reg, cur[3]);
 			cur += 4;
-		} else if (cur[0] == 2 && (length - (cur - opcode) >= 5)) {
+		} else if (cur[0] == 2 && ((cur + 5) - opcode) <= length) {
 			/* Write a 64 bit value to a 64 bit reg */
 			reg = cur[2];
 			reg = (reg << 32) | cur[1];
@@ -1396,7 +1395,7 @@ static int _execute_reg_sequence(struct adreno_device *adreno_dev,
 			val = (val << 32) | cur[3];
 			kgsl_regwrite(KGSL_DEVICE(adreno_dev), reg, val);
 			cur += 5;
-		} else if (cur[0] == 3 && (length - (cur - opcode) >= 2)) {
+		} else if (cur[0] == 3 && ((cur + 2) - opcode) <= length) {
 			/* Delay for X usec */
 			udelay(cur[1]);
 			cur += 2;
@@ -2177,15 +2176,12 @@ static int a5xx_post_start(struct adreno_device *adreno_dev)
 		*cmds++ = 0xF;
 	}
 
-	if (adreno_is_preemption_enabled(adreno_dev)) {
+	if (adreno_is_preemption_enabled(adreno_dev))
 		cmds += _preemption_init(adreno_dev, rb, cmds, NULL);
-		rb->_wptr = rb->_wptr - (42 - (cmds - start));
-		ret = adreno_ringbuffer_submit_spin_nosync(rb, NULL, 2000);
-	} else {
-		rb->_wptr = rb->_wptr - (42 - (cmds - start));
-		ret = adreno_ringbuffer_submit_spin(rb, NULL, 2000);
-	}
 
+	rb->_wptr = rb->_wptr - (42 - (cmds - start));
+
+	ret = adreno_ringbuffer_submit_spin(rb, NULL, 2000);
 	if (ret)
 		spin_idle_debug(KGSL_DEVICE(adreno_dev),
 				"hw initialization failed to idle\n");
@@ -2240,6 +2236,7 @@ static int a5xx_switch_to_unsecure_mode(struct adreno_device *adreno_dev,
  */
 static int a5xx_microcode_load(struct adreno_device *adreno_dev)
 {
+	void *ptr;
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 	uint64_t gpuaddr;
 
@@ -2269,7 +2266,7 @@ static int a5xx_microcode_load(struct adreno_device *adreno_dev)
 		desc.args[1] = 13;
 		desc.arginfo = SCM_ARGS(2);
 
-		ret = scm_call2_atomic(SCM_SIP_FNID(SCM_SVC_BOOT, 0xA), &desc);
+		ret = scm_call2(SCM_SIP_FNID(SCM_SVC_BOOT, 0xA), &desc);
 		if (ret) {
 			pr_err("SCM resume call failed with error %d\n", ret);
 			return ret;
@@ -2279,26 +2276,16 @@ static int a5xx_microcode_load(struct adreno_device *adreno_dev)
 
 	/* Load the zap shader firmware through PIL if its available */
 	if (adreno_dev->gpucore->zap_name && !zap_ucode_loaded) {
-		zap_handle_ptr = subsystem_get(adreno_dev->gpucore->zap_name);
+		ptr = subsystem_get(adreno_dev->gpucore->zap_name);
 
 		/* Return error if the zap shader cannot be loaded */
-		if (IS_ERR_OR_NULL(zap_handle_ptr))
-			return (zap_handle_ptr == NULL) ?
-					-ENODEV : PTR_ERR(zap_handle_ptr);
+		if (IS_ERR_OR_NULL(ptr))
+			return (ptr == NULL) ? -ENODEV : PTR_ERR(ptr);
 
 		zap_ucode_loaded = 1;
 	}
 
 	return 0;
-}
-
-static void a5xx_zap_shader_unload(struct adreno_device *adreno_dev)
-{
-	if (!IS_ERR_OR_NULL(zap_handle_ptr)) {
-		subsystem_put(zap_handle_ptr);
-		zap_handle_ptr = NULL;
-		zap_ucode_loaded = 0;
-	}
 }
 
 static int _me_init_ucode_workarounds(struct adreno_device *adreno_dev)
@@ -2557,7 +2544,7 @@ static int _load_firmware(struct kgsl_device *device, const char *fwfile,
 
 	memcpy(ucode->hostptr, &fw->data[4], fw->size - 4);
 	*ucode_size = (fw->size - 4) / sizeof(uint32_t);
-	*ucode_version = adreno_get_ucode_version((u32 *)fw->data);
+	*ucode_version = *(unsigned int *)&fw->data[4];
 
 done:
 	release_firmware(fw);
@@ -3711,5 +3698,4 @@ struct adreno_gpudev adreno_a5xx_gpudev = {
 	.preemption_schedule = a5xx_preemption_schedule,
 	.enable_64bit = a5xx_enable_64bit,
 	.clk_set_options = a5xx_clk_set_options,
-	.zap_shader_unload = a5xx_zap_shader_unload,
 };

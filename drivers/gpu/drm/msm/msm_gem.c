@@ -294,19 +294,9 @@ static void put_pages(struct drm_gem_object *obj)
 			msm_obj->flags &= ~MSM_BO_LOCKED;
 		}
 
-		if (msm_obj->sgt) {
-			/* For non-cached buffers, ensure the new
-			 * pages are clean because display controller,
-			 * GPU, etc. are not coherent:
-			 */
-			if (msm_obj->flags & (MSM_BO_WC|MSM_BO_UNCACHED))
-				dma_unmap_sg(obj->dev->dev, msm_obj->sgt->sgl,
-					     msm_obj->sgt->nents,
-					     DMA_BIDIRECTIONAL);
-
+		if (msm_obj->sgt)
 			sg_free_table(msm_obj->sgt);
-			kfree(msm_obj->sgt);
-		}
+		kfree(msm_obj->sgt);
 
 		if (use_pages(obj)) {
 			if (msm_obj->flags & MSM_BO_SVM) {
@@ -420,7 +410,7 @@ int msm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	pfn = page_to_pfn(pages[pgoff]);
 
-	VERB("Inserting %pK pfn %lx, pa %lx", vmf->virtual_address,
+	VERB("Inserting %p pfn %lx, pa %lx", vmf->virtual_address,
 			pfn, pfn << PAGE_SHIFT);
 
 	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address, pfn);
@@ -780,7 +770,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-	seq_printf(m, "%08x: %c(r=%u,w=%u) %2d (%2d) %08llx %pK\t",
+	seq_printf(m, "%08x: %c(r=%u,w=%u) %2d (%2d) %08llx %p\t",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
 			msm_obj->read_fence, msm_obj->write_fence,
 			obj->name, obj->refcount.refcount.counter,

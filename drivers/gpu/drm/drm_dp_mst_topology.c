@@ -29,7 +29,6 @@
 #include <linux/i2c.h>
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drmP.h>
-#include <linux/iopoll.h>
 
 #include <drm/drm_fixed.h>
 
@@ -273,7 +272,7 @@ static void drm_dp_encode_sideband_req(struct drm_dp_sideband_msg_req_body *req,
 			memcpy(&buf[idx], req->u.i2c_read.transactions[i].bytes, req->u.i2c_read.transactions[i].num_bytes);
 			idx += req->u.i2c_read.transactions[i].num_bytes;
 
-			buf[idx] = (req->u.i2c_read.transactions[i].no_stop_bit & 0x1) << 4;
+			buf[idx] = (req->u.i2c_read.transactions[i].no_stop_bit & 0x1) << 5;
 			buf[idx] |= (req->u.i2c_read.transactions[i].i2c_transaction_delay & 0xf);
 			idx++;
 		}
@@ -330,13 +329,6 @@ static bool drm_dp_sideband_msg_build(struct drm_dp_sideband_msg_rx *msg,
 			print_hex_dump(KERN_DEBUG, "failed hdr", DUMP_PREFIX_NONE, 16, 1, replybuf, replybuflen, false);
 			return false;
 		}
-
-		/*
-		 * ignore out-of-order messages or messages that are part of a
-		 * failed transaction
-		 */
-		if (!recv_hdr.somt && !msg->have_somt)
-			return false;
 
 		/* get length contained in this portion */
 		msg->curchunk_len = recv_hdr.msg_len;
@@ -432,7 +424,6 @@ static bool drm_dp_sideband_parse_remote_dpcd_read(struct drm_dp_sideband_msg_rx
 	if (idx > raw->curlen)
 		goto fail_len;
 	repmsg->u.remote_dpcd_read_ack.num_bytes = raw->msg[idx];
-	idx++;
 	if (idx > raw->curlen)
 		goto fail_len;
 
@@ -1037,12 +1028,10 @@ static bool drm_dp_port_setup_pdt(struct drm_dp_mst_port *port)
 		lct = drm_dp_calculate_rad(port, rad);
 
 		port->mstb = drm_dp_add_mst_branch_device(lct, rad);
-		if (port->mstb) {
-			port->mstb->mgr = port->mgr;
-			port->mstb->port_parent = port;
+		port->mstb->mgr = port->mgr;
+		port->mstb->port_parent = port;
 
-			send_link = true;
-		}
+		send_link = true;
 		break;
 	}
 	return send_link;
@@ -1228,9 +1217,6 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 
 	mutex_lock(&mgr->lock);
 	mstb = mgr->mst_primary;
-
-	if (!mstb)
-		goto out;
 
 	for (i = 0; i < lct - 1; i++) {
 		int shift = (i % 2) ? 0 : 4;
@@ -1542,11 +1528,7 @@ static void process_single_up_tx_qlock(struct drm_dp_mst_topology_mgr *mgr,
 	if (ret != 1)
 		DRM_DEBUG_KMS("failed to send msg in q %d\n", ret);
 
-	if (txmsg->seqno != -1) {
-		WARN_ON((unsigned int)txmsg->seqno >
-			ARRAY_SIZE(txmsg->dst->tx_slots));
-		txmsg->dst->tx_slots[txmsg->seqno] = NULL;
-	}
+	txmsg->dst->tx_slots[txmsg->seqno] = NULL;
 }
 
 static void drm_dp_queue_down_tx(struct drm_dp_mst_topology_mgr *mgr,
@@ -1813,7 +1795,6 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 				return -EINVAL;
 			}
 			req_payload.num_slots = mgr->proposed_vcpis[i]->num_slots;
-			req_payload.vcpi = mgr->proposed_vcpis[i]->vcpi;
 		} else {
 			port = NULL;
 			req_payload.num_slots = 0;
@@ -1829,7 +1810,6 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 			if (req_payload.num_slots) {
 				drm_dp_create_payload_step1(mgr, mgr->proposed_vcpis[i]->vcpi, &req_payload);
 				mgr->payloads[i].num_slots = req_payload.num_slots;
-				mgr->payloads[i].vcpi = req_payload.vcpi;
 			} else if (mgr->payloads[i].num_slots) {
 				mgr->payloads[i].num_slots = 0;
 				drm_dp_destroy_payload_step1(mgr, port, mgr->payloads[i].vcpi, &mgr->payloads[i]);
@@ -2034,7 +2014,6 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 	int ret = 0;
 	struct drm_dp_mst_branch *mstb = NULL;
 
-	mutex_lock(&mgr->payload_lock);
 	mutex_lock(&mgr->lock);
 	if (mst_state == mgr->mst_state)
 		goto out_unlock;
@@ -2097,10 +2076,7 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 		/* this can fail if the device is gone */
 		drm_dp_dpcd_writeb(mgr->aux, DP_MSTM_CTRL, 0);
 		ret = 0;
-		memset(mgr->payloads, 0,
-		       mgr->max_payloads * sizeof(mgr->payloads[0]));
-		memset(mgr->proposed_vcpis, 0,
-		       mgr->max_payloads * sizeof(mgr->proposed_vcpis[0]));
+		memset(mgr->payloads, 0, mgr->max_payloads * sizeof(struct drm_dp_payload));
 		mgr->payload_mask = 0;
 		set_bit(0, &mgr->payload_mask);
 		mgr->vcpi_mask = 0;
@@ -2108,7 +2084,6 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 
 out_unlock:
 	mutex_unlock(&mgr->lock);
-	mutex_unlock(&mgr->payload_lock);
 	if (mstb)
 		drm_dp_put_mst_branch_device(mstb);
 	return ret;
@@ -2188,7 +2163,7 @@ out_unlock:
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_resume);
 
-static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
+static void drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 {
 	int len;
 	u8 replyblock[32];
@@ -2203,12 +2178,12 @@ static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 			       replyblock, len);
 	if (ret != len) {
 		DRM_DEBUG_KMS("failed to read DPCD down rep %d %d\n", len, ret);
-		return false;
+		return;
 	}
 	ret = drm_dp_sideband_msg_build(msg, replyblock, len, true);
 	if (!ret) {
 		DRM_DEBUG_KMS("sideband msg build failed %d\n", replyblock[0]);
-		return false;
+		return;
 	}
 	replylen = msg->curchunk_len + msg->curchunk_hdrlen;
 
@@ -2220,32 +2195,21 @@ static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 		ret = drm_dp_dpcd_read(mgr->aux, basereg + curreply,
 				    replyblock, len);
 		if (ret != len) {
-			DRM_DEBUG_KMS("failed to read a chunk (len %d, ret %d)\n",
-				      len, ret);
-			return false;
+			DRM_DEBUG_KMS("failed to read a chunk\n");
 		}
-
 		ret = drm_dp_sideband_msg_build(msg, replyblock, len, false);
-		if (!ret) {
+		if (ret == false)
 			DRM_DEBUG_KMS("failed to build sideband msg\n");
-			return false;
-		}
-
 		curreply += len;
 		replylen -= len;
 	}
-	return true;
 }
 
 static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 {
 	int ret = 0;
 
-	if (!drm_dp_get_one_sb_msg(mgr, false)) {
-		memset(&mgr->down_rep_recv, 0,
-		       sizeof(struct drm_dp_sideband_msg_rx));
-		return 0;
-	}
+	drm_dp_get_one_sb_msg(mgr, false);
 
 	if (mgr->down_rep_recv.have_eomt) {
 		struct drm_dp_sideband_msg_tx *txmsg;
@@ -2301,12 +2265,7 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 {
 	int ret = 0;
-
-	if (!drm_dp_get_one_sb_msg(mgr, true)) {
-		memset(&mgr->up_req_recv, 0,
-		       sizeof(struct drm_dp_sideband_msg_rx));
-		return 0;
-	}
+	drm_dp_get_one_sb_msg(mgr, true);
 
 	if (mgr->up_req_recv.have_eomt) {
 		struct drm_dp_sideband_msg_req_body msg;
@@ -2358,9 +2317,7 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 			DRM_DEBUG_KMS("Got RSN: pn: %d avail_pbn %d\n", msg.u.resource_stat.port_number, msg.u.resource_stat.available_pbn);
 		}
 
-		if (mstb)
-			drm_dp_put_mst_branch_device(mstb);
-
+		drm_dp_put_mst_branch_device(mstb);
 		memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
 	}
 	return ret;
@@ -2648,17 +2605,6 @@ fail:
 	return ret;
 }
 
-static int do_get_act_status(struct drm_dp_aux *aux)
-{
-	int ret;
-	u8 status;
-
-	ret = drm_dp_dpcd_readb(aux, DP_PAYLOAD_TABLE_UPDATE_STATUS, &status);
-	if (ret < 0)
-		return ret;
-
-	return status;
-}
 
 /**
  * drm_dp_check_act_status() - Check ACT handled status.
@@ -2668,29 +2614,33 @@ static int do_get_act_status(struct drm_dp_aux *aux)
  */
 int drm_dp_check_act_status(struct drm_dp_mst_topology_mgr *mgr)
 {
-	/*
-	 * There doesn't seem to be any recommended retry count or timeout in
-	 * the MST specification. Since some hubs have been observed to take
-	 * over 1 second to update their payload allocations under certain
-	 * conditions, we use a rather large timeout value.
-	 */
-	const int timeout_ms = 3000;
-	int ret, status;
+	u8 status;
+	int ret;
+	int count = 0;
 
-	ret = readx_poll_timeout(do_get_act_status, mgr->aux, status,
-				 status & DP_PAYLOAD_ACT_HANDLED || status < 0,
-				 200, timeout_ms * USEC_PER_MSEC);
-	if (ret < 0 && status >= 0) {
-		DRM_DEBUG_KMS("Failed to get ACT after %dms, last status: %02x\n",
-			      timeout_ms, status);
-		return -EINVAL;
-	} else if (status < 0) {
-		DRM_DEBUG_KMS("Failed to read payload table status: %d\n",
-			      status);
-		return status;
+	do {
+		ret = drm_dp_dpcd_readb(mgr->aux, DP_PAYLOAD_TABLE_UPDATE_STATUS, &status);
+
+		if (ret < 0) {
+			DRM_DEBUG_KMS("failed to read payload table status %d\n", ret);
+			goto fail;
+		}
+
+		if (status & DP_PAYLOAD_ACT_HANDLED)
+			break;
+		count++;
+		udelay(100);
+
+	} while (count < 30);
+
+	if (!(status & DP_PAYLOAD_ACT_HANDLED)) {
+		DRM_DEBUG_KMS("failed to get ACT bit %d after %d retries\n", status, count);
+		ret = -EINVAL;
+		goto fail;
 	}
-
 	return 0;
+fail:
+	return ret;
 }
 EXPORT_SYMBOL(drm_dp_check_act_status);
 
@@ -3039,7 +2989,6 @@ static int drm_dp_mst_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs
 		msg.u.i2c_read.transactions[i].i2c_dev_id = msgs[i].addr;
 		msg.u.i2c_read.transactions[i].num_bytes = msgs[i].len;
 		msg.u.i2c_read.transactions[i].bytes = msgs[i].buf;
-		msg.u.i2c_read.transactions[i].no_stop_bit = !(msgs[i].flags & I2C_M_STOP);
 	}
 	msg.u.i2c_read.read_i2c_device_id = msgs[num - 1].addr;
 	msg.u.i2c_read.num_bytes_read = msgs[num - 1].len;

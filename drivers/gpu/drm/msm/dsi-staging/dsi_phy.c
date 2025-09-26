@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -93,8 +93,7 @@ static int dsi_phy_regmap_init(struct platform_device *pdev,
 
 	phy->hw.base = ptr;
 
-	pr_debug("[%s] map dsi_phy registers to %pK\n",
-		phy->name, phy->hw.base);
+	pr_debug("[%s] map dsi_phy registers to %p\n", phy->name, phy->hw.base);
 
 	return rc;
 }
@@ -722,10 +721,9 @@ error:
  * Return: error code.
  */
 int dsi_phy_enable(struct msm_dsi_phy *phy,
-			struct dsi_host_config *config,
-			enum dsi_phy_pll_source pll_source,
-			bool skip_validation,
-			bool cont_splash_enabled)
+		   struct dsi_host_config *config,
+		   enum dsi_phy_pll_source pll_source,
+		   bool skip_validation)
 {
 	int rc = 0;
 
@@ -760,8 +758,7 @@ int dsi_phy_enable(struct msm_dsi_phy *phy,
 		goto error_disable_clks;
 	}
 
-	if (!cont_splash_enabled)
-		dsi_phy_enable_hw(phy);
+	dsi_phy_enable_hw(phy);
 
 error_disable_clks:
 	rc = dsi_clk_enable_core_clks(&phy->clks.core_clks, false);

@@ -124,16 +124,6 @@ struct sde_connector_ops {
 	 */
 	int (*get_info)(struct msm_display_info *info, void *display);
 
-	/**
-	 * set_topology_ctl - set sde display topology property
-	 * @connector: Pointer to drm connector structure
-	 * @adj_mode: adjusted mode
-	 * @display: Pointer to private display structure
-	 * Returns: Zero on success
-	 */
-	int (*set_topology_ctl)(struct drm_connector *connector,
-		struct drm_display_mode *adj_mode, void *display);
-
 	int (*set_backlight)(void *display, u32 bl_lvl);
 
 
@@ -202,8 +192,6 @@ struct sde_connector_ops {
  * @property_data: Array of private data for generic property handling
  * @blob_caps: Pointer to blob structure for 'capabilities' property
  * @blob_hdr: Pointer to blob structure for 'hdr_properties' property
- * @is_shared: connector is shared
- * @shared_roi: roi of the shared display
  */
 struct sde_connector {
 	struct drm_connector base;
@@ -230,8 +218,6 @@ struct sde_connector {
 	struct msm_property_data property_data[CONNECTOR_PROP_COUNT];
 	struct drm_property_blob *blob_caps;
 	struct drm_property_blob *blob_hdr;
-	bool is_shared;
-	struct sde_rect shared_roi;
 };
 
 /**
@@ -247,7 +233,7 @@ struct sde_connector {
  * Returns: Pointer to associated private display structure
  */
 #define sde_connector_get_display(C) \
-	((C) ? to_sde_connector((C))->display : NULL)
+	((C) ? to_sde_connector((C))->display : 0)
 
 /**
  * sde_connector_get_panel - get sde connector's private panel pointer
@@ -255,7 +241,7 @@ struct sde_connector {
  * Returns: Pointer to associated private display structure
  */
 #define sde_connector_get_panel(C) \
-	((C) ? to_sde_connector((C))->panel : NULL)
+	((C) ? to_sde_connector((C))->panel : 0)
 
 /**
  * sde_connector_get_encoder - get sde connector's private encoder pointer
@@ -263,7 +249,7 @@ struct sde_connector {
  * Returns: Pointer to associated private encoder structure
  */
 #define sde_connector_get_encoder(C) \
-	((C) ? to_sde_connector((C))->encoder : NULL)
+	((C) ? to_sde_connector((C))->encoder : 0)
 
 /**
  * sde_connector_get_propinfo - get sde connector's property info pointer
@@ -271,7 +257,7 @@ struct sde_connector {
  * Returns: Pointer to associated private property info structure
  */
 #define sde_connector_get_propinfo(C) \
-	((C) ? &to_sde_connector((C))->property_info : NULL)
+	((C) ? &to_sde_connector((C))->property_info : 0)
 
 /**
  * struct sde_connector_state - private connector status structure
@@ -314,7 +300,7 @@ struct sde_connector_state {
  * Returns: Integer value of requested property
  */
 #define sde_connector_get_property_values(S) \
-	((S) ? (to_sde_connector_state((S))->property_values) : NULL)
+	((S) ? (to_sde_connector_state((S))->property_values) : 0)
 
 /**
  * sde_connector_get_out_fb - query out_fb value from sde connector state
@@ -322,7 +308,7 @@ struct sde_connector_state {
  * Returns: Output fb associated with specified connector state
  */
 #define sde_connector_get_out_fb(S) \
-	((S) ? to_sde_connector_state((S))->out_fb : NULL)
+	((S) ? to_sde_connector_state((S))->out_fb : 0)
 
 /**
  * sde_connector_get_topology_name - helper accessor to retrieve topology_name
@@ -407,23 +393,6 @@ enum sde_csc_type sde_connector_get_csc_type(struct drm_connector *conn);
  * Returns: Current DPMS setting for connector
  */
 int sde_connector_get_dpms(struct drm_connector *connector);
-
-/**
- * sde_connector_needs_offset - adjust the output fence offset based on
- *                              display type
- * @connector: Pointer to drm connector object
- * Returns: true if offset is required, false for all other cases.
- */
-static inline bool sde_connector_needs_offset(struct drm_connector *connector)
-{
-	struct sde_connector *c_conn;
-
-	if (!connector)
-		return false;
-
-	c_conn = to_sde_connector(connector);
-	return (c_conn->connector_type != DRM_MODE_CONNECTOR_VIRTUAL);
-}
 
 #endif /* _SDE_CONNECTOR_H_ */
 

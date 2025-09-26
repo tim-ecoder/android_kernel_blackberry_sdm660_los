@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015,2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015,2017 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -29,8 +29,6 @@
 #include "dsi.h"
 #include "dsi.xml.h"
 #include "dsi_cfg.h"
-
-#define DSI_RESET_TOGGLE_DELAY_MS 20
 
 static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 {
@@ -597,7 +595,7 @@ static inline enum dsi_cmd_dst_format dsi_get_cmd_fmt(
 	switch (mipi_fmt) {
 	case MIPI_DSI_FMT_RGB888:	return CMD_DST_FORMAT_RGB888;
 	case MIPI_DSI_FMT_RGB666_PACKED:
-	case MIPI_DSI_FMT_RGB666:	return CMD_DST_FORMAT_RGB666;
+	case MIPI_DSI_FMT_RGB666:	return VID_DST_FORMAT_RGB666;
 	case MIPI_DSI_FMT_RGB565:	return CMD_DST_FORMAT_RGB565;
 	default:			return CMD_DST_FORMAT_RGB888;
 	}
@@ -766,7 +764,7 @@ static void dsi_sw_reset(struct msm_dsi_host *msm_host)
 	wmb(); /* clocks need to be enabled before reset */
 
 	dsi_write(msm_host, REG_DSI_RESET, 1);
-	msleep(DSI_RESET_TOGGLE_DELAY_MS); /* make sure reset happen */
+	wmb(); /* make sure reset happen */
 	dsi_write(msm_host, REG_DSI_RESET, 0);
 }
 
@@ -900,7 +898,7 @@ static int dsi_cmd_dma_add(struct drm_gem_object *tx_gem,
 
 	data = msm_gem_vaddr(tx_gem);
 
-	if (IS_ERR_OR_NULL(data)) {
+	if (IS_ERR(data)) {
 		ret = PTR_ERR(data);
 		pr_err("%s: get vaddr failed, %d\n", __func__, ret);
 		return ret;
@@ -1008,7 +1006,7 @@ static int dsi_cmd_dma_rx(struct msm_dsi_host *msm_host,
 	u32 *lp, *temp, data;
 	int i, j = 0, cnt;
 	u32 read_cnt;
-	u8 reg[16] = {0};
+	u8 reg[16];
 	int repeated_bytes = 0;
 	int buf_offset = buf - msm_host->rx_buf;
 
@@ -1110,7 +1108,7 @@ static void dsi_sw_reset_restore(struct msm_dsi_host *msm_host)
 
 	/* dsi controller can only be reset while clocks are running */
 	dsi_write(msm_host, REG_DSI_RESET, 1);
-	msleep(DSI_RESET_TOGGLE_DELAY_MS); /* make sure reset happen */
+	wmb();	/* make sure reset happen */
 	dsi_write(msm_host, REG_DSI_RESET, 0);
 	wmb();	/* controller out of reset */
 	dsi_write(msm_host, REG_DSI_CTRL, data0);

@@ -723,7 +723,7 @@ static void i810_dma_dispatch_vertex(struct drm_device *dev,
 	if (nbox > I810_NR_SAREA_CLIPRECTS)
 		nbox = I810_NR_SAREA_CLIPRECTS;
 
-	if (used < 0 || used > 4 * 1024)
+	if (used > 4 * 1024)
 		used = 0;
 
 	if (sarea_priv->dirty)
@@ -1043,7 +1043,7 @@ static void i810_dma_dispatch_mc(struct drm_device *dev, struct drm_buf *buf, in
 	if (u != I810_BUF_CLIENT)
 		DRM_DEBUG("MC found buffer that isn't mine!\n");
 
-	if (used < 0 || used > 4 * 1024)
+	if (used > 4 * 1024)
 		used = 0;
 
 	sarea_priv->dirty = 0x7f;
@@ -1250,7 +1250,7 @@ const struct drm_ioctl_desc i810_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I810_FLIP, i810_flip_bufs, DRM_AUTH|DRM_UNLOCKED),
 };
 
-int i810_max_ioctl = ARRAY_SIZE(i810_ioctls);
+const int i810_max_ioctl = ARRAY_SIZE(i810_ioctls);
 
 /**
  * Determine if the device really is AGP or not.

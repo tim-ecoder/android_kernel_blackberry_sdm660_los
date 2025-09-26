@@ -285,27 +285,27 @@ static int wait_for_io_cmd_user(struct qxl_device *qdev, uint8_t val, long port,
 	int ret;
 
 	mutex_lock(&qdev->async_io_mutex);
-	irq_num = atomic_read(&qdev->irq_received_io_cmd);
+	irq_num = atomic_read_unchecked(&qdev->irq_received_io_cmd);
 	if (qdev->last_sent_io_cmd > irq_num) {
 		if (intr)
 			ret = wait_event_interruptible_timeout(qdev->io_cmd_event,
-							       atomic_read(&qdev->irq_received_io_cmd) > irq_num, 5*HZ);
+							       atomic_read_unchecked(&qdev->irq_received_io_cmd) > irq_num, 5*HZ);
 		else
 			ret = wait_event_timeout(qdev->io_cmd_event,
-						 atomic_read(&qdev->irq_received_io_cmd) > irq_num, 5*HZ);
+						 atomic_read_unchecked(&qdev->irq_received_io_cmd) > irq_num, 5*HZ);
 		/* 0 is timeout, just bail the "hw" has gone away */
 		if (ret <= 0)
 			goto out;
-		irq_num = atomic_read(&qdev->irq_received_io_cmd);
+		irq_num = atomic_read_unchecked(&qdev->irq_received_io_cmd);
 	}
 	outb(val, addr);
 	qdev->last_sent_io_cmd = irq_num + 1;
 	if (intr)
 		ret = wait_event_interruptible_timeout(qdev->io_cmd_event,
-						       atomic_read(&qdev->irq_received_io_cmd) > irq_num, 5*HZ);
+						       atomic_read_unchecked(&qdev->irq_received_io_cmd) > irq_num, 5*HZ);
 	else
 		ret = wait_event_timeout(qdev->io_cmd_event,
-					 atomic_read(&qdev->irq_received_io_cmd) > irq_num, 5*HZ);
+					 atomic_read_unchecked(&qdev->irq_received_io_cmd) > irq_num, 5*HZ);
 out:
 	if (ret > 0)
 		ret = 0;
@@ -500,10 +500,9 @@ int qxl_hw_surface_alloc(struct qxl_device *qdev,
 		return ret;
 
 	ret = qxl_release_reserve_list(release, true);
-	if (ret) {
-		qxl_release_free(qdev, release);
+	if (ret)
 		return ret;
-	}
+
 	cmd = (struct qxl_surface_cmd *)qxl_release_map(qdev, release);
 	cmd->type = QXL_SURFACE_CMD_CREATE;
 	cmd->flags = QXL_SURF_FLAG_KEEP_DATA;
@@ -529,8 +528,8 @@ int qxl_hw_surface_alloc(struct qxl_device *qdev,
 	/* no need to add a release to the fence for this surface bo,
 	   since it is only released when we ask to destroy the surface
 	   and it would never signal otherwise */
-	qxl_release_fence_buffer_objects(release);
 	qxl_push_command_ring_release(qdev, release, QXL_CMD_SURFACE, false);
+	qxl_release_fence_buffer_objects(release);
 
 	surf->hw_surf_alloc = true;
 	spin_lock(&qdev->surf_id_idr_lock);
@@ -572,8 +571,9 @@ int qxl_hw_surface_dealloc(struct qxl_device *qdev,
 	cmd->surface_id = id;
 	qxl_release_unmap(qdev, release, &cmd->release_info);
 
-	qxl_release_fence_buffer_objects(release);
 	qxl_push_command_ring_release(qdev, release, QXL_CMD_SURFACE, false);
+
+	qxl_release_fence_buffer_objects(release);
 
 	return 0;
 }
