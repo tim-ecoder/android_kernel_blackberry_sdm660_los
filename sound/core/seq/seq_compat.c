@@ -23,6 +23,8 @@
 #include <linux/compat.h>
 #include <linux/slab.h>
 
+#define __force_user
+
 struct snd_seq_port_info32 {
 	struct snd_seq_addr addr;	/* client/port numbers */
 	char name[64];			/* port name */
@@ -60,7 +62,7 @@ static int snd_seq_call_port_info_ioctl(struct snd_seq_client *client, unsigned 
 	data->kernel = NULL;
 
 	fs = snd_enter_user();
-	err = snd_seq_do_ioctl(client, cmd, data);
+	err = snd_seq_do_ioctl(client, cmd, (void __force_user *)data);
 	snd_leave_user(fs);
 	if (err < 0)
 		goto error;

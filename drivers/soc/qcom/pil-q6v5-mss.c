@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -44,10 +44,43 @@
 
 #define subsys_to_drv(d) container_of(d, struct modem_data, subsys_desc)
 
+#ifdef CONFIG_BBRY
+extern void subsystem_ramdump_indication(struct subsys_device *dev, unsigned int indication);
+
+// in some cases modem reset is expected, we don't want to generate ramdump
+// e.g. modem reset triggered from MCFG
+static struct mp_reasons_t {
+	char *reason;
+	char *description;
+} mpss_crash_reasons[] = {
+	{ "mcfg_utils.c:", "MCFG:Modem Initiated Reset. This crash is expected!!!"},
+	{ "qmi_vs_bbry_svc.c:", "BBRY:AP Initiated Reset"},
+	{NULL, NULL}
+};
+// in some modem reset cases AP side logs are required, we want to invoke AP ramdump
+// e.g. modem initialization fails but it appears to be APSS issue
+static struct mp_init_ap_t {
+	char *reason;
+	char *description;
+} mpss_crash_init_ap[] = {
+	// add signature here, e.g.
+	//{ "SFR Init:", "wdog or kernel error suspected"},
+	{NULL, NULL}
+};
+#endif
+
+#ifdef CONFIG_BBRY
+static void log_modem_sfr(int *indication)
+#else
 static void log_modem_sfr(void)
+#endif
 {
 	u32 size;
 	char *smem_reason, reason[MAX_SSR_REASON_LEN];
+#ifdef CONFIG_BBRY
+	struct mp_reasons_t *e;
+	struct mp_init_ap_t *ea;
+#endif
 
 	smem_reason = smem_get_entry_no_rlock(SMEM_SSR_REASON_MSS0, &size, 0,
 							SMEM_ANY_HOST_FLAG);
@@ -61,7 +94,29 @@ static void log_modem_sfr(void)
 	}
 
 	strlcpy(reason, smem_reason, min(size, MAX_SSR_REASON_LEN));
+#ifdef CONFIG_BBRY
+	// print full string to dmesg
+	pr_err("modem subsystem failure reason: %s.\n", smem_reason);
+#else
 	pr_err("modem subsystem failure reason: %s.\n", reason);
+#endif
+
+#ifdef CONFIG_BBRY
+	for (e = mpss_crash_reasons; e->reason; e++) {
+		if ( e->description && strnstr( reason, e->description, min(size, MAX_SSR_REASON_LEN) ) ) {
+			pr_info("modem subsystem failure reason %s is expected. Ramdumps will be suppressed.\n", reason);
+			*indication |= 0x1;
+			break;
+		}
+	}
+	for (ea = mpss_crash_init_ap; ea->reason; ea++) {
+		if ( ea->description && strnstr( reason, ea->description, min(size, MAX_SSR_REASON_LEN) ) ) {
+			pr_info("modem subsystem failure reason %s\n due to AP is expected. Ramdumps may be suppressed.", reason);
+			*indication |= 0x2;
+			break;
+		}
+	}
+#endif
 
 	smem_reason[0] = '\0';
 	wmb();
@@ -69,7 +124,13 @@ static void log_modem_sfr(void)
 
 static void restart_modem(struct modem_data *drv)
 {
+#ifdef CONFIG_BBRY
+	unsigned int  indication = 0;
+	log_modem_sfr(&indication);
+	subsystem_ramdump_indication(drv->subsys, indication);
+#else
 	log_modem_sfr();
+#endif
 	drv->ignore_errors = true;
 	subsystem_restart_dev(drv->subsys);
 }
@@ -82,6 +143,7 @@ static irqreturn_t modem_err_fatal_intr_handler(int irq, void *dev_id)
 	if (drv->crash_shutdown)
 		return IRQ_HANDLED;
 
+	pr_err("Fatal error on the modem.\n");
 	subsys_set_crash_status(drv->subsys, CRASH_STATUS_ERR_FATAL);
 	restart_modem(drv);
 	return IRQ_HANDLED;

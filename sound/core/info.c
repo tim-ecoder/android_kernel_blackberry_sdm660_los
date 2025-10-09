@@ -664,9 +664,7 @@ int snd_info_get_line(struct snd_info_buffer *buffer, char *line, int len)
 {
 	int c = -1;
 
-	if (snd_BUG_ON(!buffer))
-		return 1;
-	if (!buffer->buffer)
+	if (snd_BUG_ON(!buffer || !buffer->buffer))
 		return 1;
 	if (len <= 0 || buffer->stop || buffer->error)
 		return 1;
@@ -844,12 +842,7 @@ void snd_info_free_entry(struct snd_info_entry * entry)
 	list_for_each_entry_safe(p, n, &entry->children, list)
 		snd_info_free_entry(p);
 
-	p = entry->parent;
-	if (p) {
-		mutex_lock(&p->access);
-		list_del(&entry->list);
-		mutex_unlock(&p->access);
-	}
+	list_del(&entry->list);
 	kfree(entry->name);
 	if (entry->private_free)
 		entry->private_free(entry);

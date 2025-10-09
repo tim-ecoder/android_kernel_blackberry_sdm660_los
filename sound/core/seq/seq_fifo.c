@@ -50,7 +50,7 @@ struct snd_seq_fifo *snd_seq_fifo_new(int poolsize)
 	spin_lock_init(&f->lock);
 	snd_use_lock_init(&f->use_lock);
 	init_waitqueue_head(&f->input_sleep);
-	atomic_set(&f->overflow, 0);
+	atomic_set_unchecked(&f->overflow, 0);
 
 	f->head = NULL;
 	f->tail = NULL;
@@ -99,7 +99,7 @@ void snd_seq_fifo_clear(struct snd_seq_fifo *f)
 	unsigned long flags;
 
 	/* clear overflow flag */
-	atomic_set(&f->overflow, 0);
+	atomic_set_unchecked(&f->overflow, 0);
 
 	snd_use_lock_sync(&f->use_lock);
 	spin_lock_irqsave(&f->lock, flags);
@@ -123,10 +123,10 @@ int snd_seq_fifo_event_in(struct snd_seq_fifo *f,
 		return -EINVAL;
 
 	snd_use_lock_use(&f->use_lock);
-	err = snd_seq_event_dup(f->pool, event, &cell, 1, NULL, NULL); /* always non-blocking */
+	err = snd_seq_event_dup(f->pool, event, &cell, 1, NULL); /* always non-blocking */
 	if (err < 0) {
 		if ((err == -ENOMEM) || (err == -EAGAIN))
-			atomic_inc(&f->overflow);
+			atomic_inc_unchecked(&f->overflow);
 		snd_use_lock_free(&f->use_lock);
 		return err;
 	}
@@ -277,21 +277,4 @@ int snd_seq_fifo_resize(struct snd_seq_fifo *f, int poolsize)
 	snd_seq_pool_delete(&oldpool);
 
 	return 0;
-}
-
-/* get the number of unused cells safely */
-int snd_seq_fifo_unused_cells(struct snd_seq_fifo *f)
-{
-	unsigned long flags;
-	int cells;
-
-	if (!f)
-		return 0;
-
-	snd_use_lock_use(&f->use_lock);
-	spin_lock_irqsave(&f->lock, flags);
-	cells = snd_seq_unused_cells(f->pool);
-	spin_unlock_irqrestore(&f->lock, flags);
-	snd_use_lock_free(&f->use_lock);
-	return cells;
 }

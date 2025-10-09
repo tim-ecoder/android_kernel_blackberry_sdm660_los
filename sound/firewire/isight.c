@@ -96,7 +96,7 @@ static void isight_update_pointers(struct isight *isight, unsigned int count)
 	ptr += count;
 	if (ptr >= runtime->buffer_size)
 		ptr -= runtime->buffer_size;
-	ACCESS_ONCE(isight->buffer_pointer) = ptr;
+	ACCESS_ONCE_RW(isight->buffer_pointer) = ptr;
 
 	isight->period_counter += count;
 	if (isight->period_counter >= runtime->period_size) {
@@ -293,7 +293,7 @@ static int isight_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	ACCESS_ONCE(isight->pcm_active) = true;
+	ACCESS_ONCE_RW(isight->pcm_active) = true;
 
 	return 0;
 }
@@ -331,7 +331,7 @@ static int isight_hw_free(struct snd_pcm_substream *substream)
 {
 	struct isight *isight = substream->private_data;
 
-	ACCESS_ONCE(isight->pcm_active) = false;
+	ACCESS_ONCE_RW(isight->pcm_active) = false;
 
 	mutex_lock(&isight->mutex);
 	isight_stop_streaming(isight);
@@ -424,10 +424,10 @@ static int isight_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		ACCESS_ONCE(isight->pcm_running) = true;
+		ACCESS_ONCE_RW(isight->pcm_running) = true;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		ACCESS_ONCE(isight->pcm_running) = false;
+		ACCESS_ONCE_RW(isight->pcm_running) = false;
 		break;
 	default:
 		return -EINVAL;
@@ -639,7 +639,7 @@ static int isight_probe(struct fw_unit *unit,
 	if (!isight->audio_base) {
 		dev_err(&unit->device, "audio unit base not found\n");
 		err = -ENXIO;
-		goto error;
+		goto err_unit;
 	}
 	fw_iso_resources_init(&isight->resources, unit);
 
@@ -668,12 +668,12 @@ static int isight_probe(struct fw_unit *unit,
 	dev_set_drvdata(&unit->device, isight);
 
 	return 0;
+
+err_unit:
+	fw_unit_put(isight->unit);
+	mutex_destroy(&isight->mutex);
 error:
 	snd_card_free(card);
-
-	mutex_destroy(&isight->mutex);
-	fw_unit_put(isight->unit);
-
 	return err;
 }
 

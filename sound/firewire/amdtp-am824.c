@@ -314,7 +314,7 @@ void amdtp_am824_midi_trigger(struct amdtp_stream *s, unsigned int port,
 	struct amdtp_am824 *p = s->protocol;
 
 	if (port < p->midi_ports)
-		ACCESS_ONCE(p->midi[port]) = midi;
+		ACCESS_ONCE_RW(p->midi[port]) = midi;
 }
 EXPORT_SYMBOL_GPL(amdtp_am824_midi_trigger);
 
@@ -388,7 +388,7 @@ static void read_midi_messages(struct amdtp_stream *s,
 	u8 *b;
 
 	for (f = 0; f < frames; f++) {
-		port = (8 - s->tx_first_dbc + s->data_block_counter + f) % 8;
+		port = (s->data_block_counter + f) % 8;
 		b = (u8 *)&buffer[p->midi_position];
 
 		len = b[0] - 0x80;

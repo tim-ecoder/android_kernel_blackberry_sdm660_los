@@ -142,10 +142,11 @@ static inline size_t __trace_wb_cgroup_size(struct bdi_writeback *wb)
 static inline void __trace_wb_assign_cgroup(char *buf, struct bdi_writeback *wb)
 {
 	struct cgroup *cgrp = wb->memcg_css->cgroup;
-	char *path;
+	//char *path;
+	int path;
 
 	path = cgroup_path(cgrp, buf, kernfs_path_len(cgrp->kn) + 1);
-	WARN_ON_ONCE(path != buf);
+	//WARN_ON_ONCE(path != buf);
 }
 
 static inline size_t __trace_wbc_cgroup_size(struct writeback_control *wbc)

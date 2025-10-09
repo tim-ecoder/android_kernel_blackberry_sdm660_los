@@ -23,6 +23,8 @@
 #include <linux/compat.h>
 #include <linux/slab.h>
 
+#define __force_user
+
 static int snd_pcm_ioctl_delay_compat(struct snd_pcm_substream *substream,
 				      s32 __user *src)
 {
@@ -31,7 +33,7 @@ static int snd_pcm_ioctl_delay_compat(struct snd_pcm_substream *substream,
 	int err;
 
 	fs = snd_enter_user();
-	err = snd_pcm_delay(substream, &delay);
+	err = snd_pcm_delay(substream, (snd_pcm_sframes_t __force_user *)&delay);
 	snd_leave_user(fs);
 	if (err < 0)
 		return err;
@@ -426,8 +428,6 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 		return -ENOTTY;
 	if (substream->stream != dir)
 		return -EINVAL;
-	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN)
-		return -EBADFD;
 
 	if ((ch = substream->runtime->channels) > 128)
 		return -EINVAL;
